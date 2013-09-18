@@ -1,39 +1,51 @@
 <?php
 /**
- * Pi Debugger Writer
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @package         Pi\Log
- * @since           3.0
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Pi\Log\Writer;
 
 use Pi;
-use Zend\Log\Formatter\FormatterInterface;
 use Pi\Log\Logger;
 use Pi\Log\Formatter\Debugger as DebuggerFormatter;
 use Pi\Log\Formatter\DbProfiler as DbFormatter;
 use Pi\Log\Formatter\Profiler as ProfilerFormatter;
 use Pi\Log\Formatter\SystemInfo as SystemInfoFormatter;
+use Pi\Version\Version as PiVersion;
+use Zend\Log\Formatter\FormatterInterface;
 use Zend\Log\Writer\AbstractWriter;
+use PDO;
 
+/**
+ * Debugger writer
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 class Debugger extends AbstractWriter
 {
+    /**
+     * {@inheritDoc}
+     */
+    protected $errorsToExceptionsConversionLevel = E_ALL;
+
+    /** @var ProfilerFormatter Profile formatter */
     protected $profilerFormatter;
+
+    /** @var DbFormatter DbProfile formatter */
     protected $dbProfilerFormatter;
+
+    /** @var SystemInfoFormatter SystemInfo formatter */
     protected $systemInfoFormatter;
 
+    /**
+     * Log messages container
+     *
+     * @var array
+     */
     protected $logger = array(
         'log'       => array(),
         'debug'     => array(),
@@ -43,69 +55,95 @@ class Debugger extends AbstractWriter
     );
 
     /**
-     * get formatter for loggder writer
+     * The Debugger is muted
      *
-     * @param  Formatter $formatter
-     * @return self
+     * @var bool
+     */
+    protected $muted = false;
+
+    /**
+     * Mute the debugger
+     *
+     * @param bool $flag
+     * @return bool Return previous muted value
+     */
+    public function mute($flag = true)
+    {
+        $muted = $this->muted;
+        if (null !== $flag) {
+            $this->muted = (bool) $flag;
+        }
+
+        return $muted;
+    }
+
+    /**
+     * Get formatter for loggder writer
+     *
+     * @return DebuggerFormatter
      */
     public function formatter()
     {
         if (!$this->formatter) {
             $this->formatter = new DebuggerFormatter;
         }
+
         return $this->formatter;
     }
 
     /**
-     * get formatter for profiler writer
+     * Get formatter for profiler writer
      *
-     * @param  Formatter $formatter
-     * @return self
+     * @return ProfilerFormatter
      */
     public function profilerFormatter()
     {
         if (!$this->profilerFormatter) {
             $this->profilerFormatter = new ProfilerFormatter;
         }
+
         return $this->profilerFormatter;
     }
 
     /**
-     * get formatter for DB profiler writer
+     * Get formatter for DB profiler writer
      *
-     * @param  Formatter $formatter
-     * @return self
+     * @return DbFormatter
      */
     public function dbProfilerFormatter()
     {
         if (!$this->dbProfilerFormatter) {
             $this->dbProfilerFormatter = new DbFormatter;
         }
+
         return $this->dbProfilerFormatter;
     }
 
     /**
-     * get formatter for system info writer
+     * Get formatter for system info writer
      *
-     * @param  Formatter $formatter
-     * @return self
+     * @return SystemInfoFormatter
      */
     public function systemInfoFormatter()
     {
         if (!$this->systemInfoFormatter) {
             $this->systemInfoFormatter = new SystemInfoFormatter;
         }
+
         return $this->systemInfoFormatter;
     }
 
     /**
-     * Write a message to logger.
+     * Register a message to logger.
      *
      * @param array $event event data
      * @return void
      */
     protected function doWrite(array $event)
     {
+        if ($this->muted) {
+            return;
+        }
         if ($event['priority'] > Logger::DEBUG) {
             return;
         }
@@ -122,36 +160,50 @@ class Debugger extends AbstractWriter
     }
 
     /**
-     * Write a message to profiler
+     * Register a message to profiler
      *
      * @param array $event event data
      * @return void
      */
     public function doProfiler(array $event)
     {
+        if ($this->muted) {
+            return;
+        }
         $message = $this->profilerFormatter()->format($event);
 
         $this->logger['profiler'][] = $message;
     }
 
     /**
-     * Write a message to DB profiler
+     * Register a message to DB profiler
      *
      * @param array $event event data
      * @return void
      */
     public function doDb(array $event)
     {
+        if ($this->muted) {
+            return;
+        }
         $message = $this->dbProfilerFormatter()->format($event);
         $this->logger['db'][] = $message;
     }
 
+    /**
+     * Process system information and register to systeminfo writer
+     *
+     * @return void
+     */
     public function systemInfo()
     {
         $system = array();
 
         // Execution time
-        $system['Execution time'] = sprintf('%.4f', microtime(true) - Pi::startTime()) . ' s';
+        $system['Execution time'] = sprintf(
+            '%.4f',
+            microtime(true) - Pi::startTime()
+        ) . ' s';
 
         // Included file count
         $files_included = get_included_files();
@@ -169,7 +221,10 @@ class Debugger extends AbstractWriter
             // Windows system
             if (strpos(strtolower(PHP_OS), 'win') !== false) {
                 $out = array();
-                exec('tasklist /FI "PID eq ' . getmypid() . '" /FO LIST', $out);
+                exec(
+                    'tasklist /FI "PID eq ' . getmypid() . '" /FO LIST',
+                    $out
+                );
                 $memory = substr($out[5], strpos($out[5], ':') + 1);
             }
         }
@@ -177,18 +232,21 @@ class Debugger extends AbstractWriter
 
         // Sstem environments
         $system['OS'] = PHP_OS ?: 'Not detected';
-        $system['Web Server'] = $_SERVER['SERVER_SOFTWARE']; //PHP_SAPI ?: 'Not detected';
+        // PHP_SAPI ?: 'Not detected';
+        $system['Web Server'] = $_SERVER['SERVER_SOFTWARE'];
         $system['PHP Version'] = PHP_VERSION;
 
         // MySQL version
-        $pdo = Pi::db()->getAdapter()->getDriver()->getConnection()->connect()->getResource();
-        $server_version = $pdo->getAttribute(\PDO::ATTR_SERVER_VERSION);
-        $client_version = $pdo->getAttribute(\PDO::ATTR_CLIENT_VERSION);
-        $system['MySQL Version'] = sprintf('Server: %s; Client: %s', $server_version, $client_version);
+        $pdo = Pi::db()->getAdapter()->getDriver()
+            ->getConnection()->connect()->getResource();
+        $server_version = $pdo->getAttribute(PDO::ATTR_SERVER_VERSION);
+        $client_version = $pdo->getAttribute(PDO::ATTR_CLIENT_VERSION);
+        $system['MySQL Version'] = sprintf('Server: %s; Client: %s',
+            $server_version, $client_version);
 
         // Application versions
-        $system['Pi Version'] = Pi::VERSION;
-        $system['Zend Version'] = \Zend\Version\Version::VERSION;
+        $system['Pi Version'] = PiVersion::version();
+        $system['Zend Version'] = PiVersion::version('zend');
         $system['Persist Engine'] = Pi::persist()->getType();
         if (Pi::service()->hasService('cache')) {
             $class = get_class(Pi::service('cache')->storage());
@@ -214,7 +272,7 @@ class Debugger extends AbstractWriter
         }
         // APD
         if (function_exists('apd_set_pprof_trace')) {
-            $extensions[] = 'APD: ' . \APD_VERSION;
+            $extensions[] = 'APD: ' . APD_VERSION;
         }
         // XHProf
         if (function_exists('xhprof_enable')) {
@@ -242,12 +300,21 @@ class Debugger extends AbstractWriter
                 'name'  => $key,
                 'value' => $value,
             );
-            $this->logger['system'][] = $this->systemInfoFormatter()->format($event);
+            $this->logger['system'][] =
+                $this->systemInfoFormatter()->format($event);
         }
     }
 
+    /**
+     * Render and display logged messages
+     *
+     * @return void
+     */
     public function render()
     {
+        if ($this->muted) {
+            return;
+        }
         $this->systemInfo();
 
         // Use heredoc for log contents
@@ -260,13 +327,19 @@ EOT;
             $count = count($this->logger[$category]);
             $log .= PHP_EOL .
 <<<"EOT"
-        <span id="pi-logger-tab-{$category}"><a href="javascript:piLoggerToggleCategoryDisplay('{$category}')">{$category}({$count})</a></span> |
+        <span id="pi-logger-tab-{$category}">
+            <a href="javascript:piLoggerToggleCategoryDisplay('{$category}')">
+                {$category}({$count})
+            </a>
+        </span> |
 EOT;
         }
 
         $log .= PHP_EOL .
 <<<'EOT'
-        <span id="pi-logger-tab-all"><a href="javascript:piLoggerToggleCategoryDisplay('all')">all</a></span>
+        <span id="pi-logger-tab-all">
+            <a href="javascript:piLoggerToggleCategoryDisplay('all')">all</a>
+        </span>
     </div>
     <div id="pi-logger-categories">
 EOT;
@@ -378,7 +451,8 @@ EOT;
 </style>
 EOT;
 
-        $cookiePath = ($baseUrl = Pi::host()->get('baseUrl')) ? rtrim($baseUrl, '/') . '/' : '/';
+        $cookiePath = ($baseUrl = Pi::host()->get('baseUrl'))
+                        ? rtrim($baseUrl, '/') . '/' : '/';
         // Use heredoc for JavaScript contents
         $scripts_js =
 <<<"EOT"

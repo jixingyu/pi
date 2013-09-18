@@ -1,35 +1,34 @@
 <?php
 /**
- * Pi Engine theme service
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @package         Pi\Application
- * @subpackage      Service
- * @since           3.0
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
+ * @package         Service
  */
 
 namespace Pi\Application\Service;
+
 use Pi;
 
+/**
+ * Theme handling service
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 class Theme extends AbstractService
 {
+    /** @var string Default theme name */
     const DEFAULT_THEME = 'default';
+
+    /** @var string Current theme name */
     protected $currentTheme;
 
     /**
      * Set current active theme
      *
-     * @param sring $theme
+     * @param string $theme
      * @return Theme
      */
     public function setTheme($theme)
@@ -46,9 +45,11 @@ class Theme extends AbstractService
     public function current()
     {
         if (!$this->currentTheme) {
-            $this->currentTheme = ('front' == Pi::engine()->section()) ? Pi::config('theme') : Pi::config('theme_admin');
+            $this->currentTheme = ('front' == Pi::engine()->section())
+                    ? Pi::config('theme') : Pi::config('theme_admin');
             $this->currentTheme = $this->currentTheme ?: 'default';
         }
+
         return $this->currentTheme;
     }
 
@@ -66,6 +67,7 @@ class Theme extends AbstractService
         } else {
             $config = array();
         }
+
         return $config;
     }
 
@@ -78,6 +80,7 @@ class Theme extends AbstractService
     public function path($theme)
     {
         $path = Pi::path('theme') . '/' . $theme;
+
         return $path;
     }
 
@@ -91,7 +94,10 @@ class Theme extends AbstractService
     {
         $theme = $theme ?: $this->current();
         $config = $this->loadConfig($theme);
-        $parent = !empty($config['parent']) ? $config['parent'] : ($theme == static::DEFAULT_THEME ? '' : static::DEFAULT_THEME);
+        $parent = !empty($config['parent'])
+            ? $config['parent']
+            : ($theme == static::DEFAULT_THEME ? '' : static::DEFAULT_THEME);
+
         return $parent;
     }
 }

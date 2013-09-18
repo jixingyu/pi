@@ -1,46 +1,48 @@
 <?php
 /**
- * Pi module installer resource
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Pi\Application
- * @subpackage      Installer
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Pi\Application\Installer\Resource;
+
 use Pi;
 
 /**
- * Search configuration
+ * Module search setup configuration
+ *
+ * ```
  * array(
  *  'callback'  => array('class', 'method'),
  * );
+ * ```
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
  */
 class Search extends AbstractResource
 {
+    /**
+     * {@inheritDoc}
+     */
     public function installAction()
     {
         if (empty($this->config)) {
             return;
         }
         $module = $this->event->getParam('module');
-        Pi::service('registry')->search->clear($module);
+        Pi::registry('search')->clear($module);
 
         $model = Pi::model('search');
         $data = $this->config;
         $directory = $this->event->getParam('directory');
-        $data['callback'][0] = sprintf('Module\\%s\\%s', ucfirst($directory), $data['callback'][0]);
+        $data['callback'][0] = sprintf(
+            'Module\\%s\\%s',
+            ucfirst($directory),
+            $data['callback'][0]
+        );
         $data['module'] = $module;
         $row = $model->createRow($data);
         $row->save();
@@ -48,10 +50,13 @@ class Search extends AbstractResource
         return true;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function updateAction()
     {
         $module = $this->event->getParam('module');
-        Pi::service('registry')->search->clear($module);
+        Pi::registry('search')->clear($module);
         if ($this->skipUpgrade()) {
             return;
         }
@@ -67,7 +72,11 @@ class Search extends AbstractResource
         }
         $data = $this->config;
         $directory = $this->event->getParam('directory');
-        $data['callback'][0] = sprintf('Module\\%s\\%s', ucfirst($directory), $data['callback'][0]);
+        $data['callback'][0] = sprintf(
+            'Module\\%s\\%s',
+            ucfirst($directory),
+            $data['callback'][0]
+        );
         $data['module'] = $module;
         if ($row) {
             $row->assign($data);
@@ -79,31 +88,43 @@ class Search extends AbstractResource
         return true;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function uninstallAction()
     {
         $module = $this->event->getParam('module');
-        Pi::service('registry')->search->clear($module);
+        Pi::registry('search')->clear($module);
 
         $model = Pi::model('search');
         $model->delete(array('module' => $module));
+
         return true;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function activateAction()
     {
         $module = $this->event->getParam('module');
         $model = Pi::model('search');
         $model->update(array('active' => 1), array('module' => $module));
-        Pi::service('registry')->search->flush();
+        Pi::registry('search')->flush();
+
         return true;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function deactivateAction()
     {
         $module = $this->event->getParam('module');
         $model = Pi::model('search');
         $model->update(array('active' => 0), array('module' => $module));
-        Pi::service('registry')->search->flush();
+        Pi::registry('search')->flush();
+
         return true;
     }
 }

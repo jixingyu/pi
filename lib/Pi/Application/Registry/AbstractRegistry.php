@@ -1,62 +1,79 @@
 <?php
 /**
- * Pi registry abstraction
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @package         Pi\Application
- * @subpackage      Registry
- * @since           3.0
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
+ * @package         Registry
  */
 
 namespace Pi\Application\Registry;
+
 use Pi;
 use Zend\Cache\Storage\Adapter\AbstractAdapter as CacheAdapter;
 
+/**
+ * Cache registry abstract class
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 abstract class AbstractRegistry
 {
+    /**
+     * Tag for generating identifier
+     *
+     * @var string
+     */
     const TAG = 'registry';
 
+    /**
+     * Identifier
+     *
+     * @var string
+     */
     protected $registryKey;
 
+    /**
+     * Raw data generator
+     *
+     * @var Callback|null
+     */
     protected $generator;
 
     /**
      * Cache storage
+     *
      * @var CacheAdapter
      */
     protected $cache;
 
    /**
      * Namespace of current registry
+    *
      * @var string
      */
     protected $namespace;
 
     /**
-     * The meta tags used for namespace, thus will be skipped in key generator since the tags will be prefixed via namespace
-     * @var array
+     * The meta tags used for namespace,
+     * thus will be skipped in key generator
+     * since the tags will be prefixed via namespace
+     *
+     * @var string[]
      */
     protected $namespaceMeta = array();
 
     /**
      * Data generator
      *
-     * @param type $generator
-     * @return AbstractRegistry
+     * @param Callback $generator
+     * @return $this
      */
     public function setGenerator($generator)
     {
         $this->generator = $generator;
+
         return $this;
     }
 
@@ -64,7 +81,7 @@ abstract class AbstractRegistry
      * Load dynamic data from database
      *
      * @param array $options
-     * @return mixed
+     * @return mixed|bool
      * @throws \Exception
      */
     protected function loadDynamic($options)
@@ -84,7 +101,6 @@ abstract class AbstractRegistry
      */
     protected function getNamespace($name)
     {
-        //return Pi::service('cache')->getNamespace(sprintf('%s_%s_%s', static::TAG, $this->registryKey, $name));
         return sprintf('%s_%s_%s', static::TAG, $this->registryKey, $name);
     }
 
@@ -92,7 +108,7 @@ abstract class AbstractRegistry
      * Set namespace of current meta
      *
      * @param string|array $meta
-     * @return AbstractRegistry
+     * @return $this
      * @throws \Exception
      */
     public function setNamespace($meta)
@@ -105,7 +121,10 @@ abstract class AbstractRegistry
                 $namespace = $meta['module'];
                 $this->namespaceMeta = array('module');
             } else {
-                throw new \Exception('Custom namespace is required for registry ' . get_class($this));
+                throw new \Exception(
+                    'Custom namespace is required for registry '
+                    . get_class($this)
+                );
             }
             /*
             $namespace = $this->getNamespace($namespace);
@@ -146,10 +165,10 @@ abstract class AbstractRegistry
             if (null === $meta[$var]) {
                 switch ($var) {
                     case 'role':
-                        $meta[$var] = Pi::registry('user')->role;
+                        $meta[$var] = Pi::service('user')->getUser()->role();
                         break;
                     case 'locale':
-                        $meta[$var] = Pi::config('locale');
+                        $meta[$var] = Pi::service('i18n')->locale;
                         break;
                     default:
                         break;
@@ -160,6 +179,7 @@ abstract class AbstractRegistry
             }
         }
         $key = $key ?: static::TAG;
+
         return $key;
     }
 
@@ -167,11 +187,12 @@ abstract class AbstractRegistry
      * Set cache storage
      *
      * @param CacheAdapter $cache
-     * @return AbstractRegistry
+     * @return $this
      */
     public function setCache(CacheAdapter $cache)
     {
         $this->cache = clone $cache;
+
         return $this;
     }
 
@@ -193,7 +214,7 @@ abstract class AbstractRegistry
      * Load data matching the meta
      *
      * @param array $meta
-     * @return array
+     * @return array|bool
      */
     protected function loadData($meta = array())
     {
@@ -205,11 +226,6 @@ abstract class AbstractRegistry
             //$isCached = false;
         }
 
-        /*
-        if (Pi::service()->hasService('log')) {
-            Pi::service('log')->info(sprintf('Registry %s is %s.', get_class($this), $isCached ? 'cached' : 'generated'));
-        }
-        */
         return $data;
     }
 
@@ -217,26 +233,19 @@ abstract class AbstractRegistry
      * Load cache data matching the meta
      *
      * @param array $meta
-     * @return array
+     * @return array|bool
      */
     protected function loadCacheData($meta = array())
     {
         $data = null;
         if ($this->cache()) {
             $cacheKey = $this->createKey($meta);
-
-            /*
-            $namespace = $this->cache->getOptions()->getNamespace();
-            $this->cache->getOptions()->setNamespace($this->namespace);
-            $data = $this->cache->getItem($cacheKey);
-            $this->cache->getOptions()->setNamespace($namespace);
-            */
-
             $data = Pi::service('cache')->getItem($cacheKey, $this->namespace);
             if (null !== $data) {
                 $data = json_decode($data, true);
             }
         }
+
         return $data;
     }
 
@@ -245,47 +254,59 @@ abstract class AbstractRegistry
      *
      * @param mixed $data
      * @param array $meta
-     * @return boolean
+     * @return bool
      */
     protected function saveCache($data, $meta = array())
     {
         if ($data === false) {
             return false;
         }
-        //return $this->cache() ? $this->cache->setItem($this->createKey($meta), json_encode($data)) : false;
         $status = false;
         if ($this->cache()) {
-            /*
-            $namespace = $this->cache->getOptions()->getNamespace();
-            $this->cache->getOptions()->setNamespace($this->namespace);
-            $status = $this->cache->setItem($this->createKey($meta), json_encode($data));
-            $this->cache->getOptions()->setNamespace($namespace);
-            */
             $cacheKey = $this->createKey($meta);
-            $data = Pi::service('cache')->setItem($cacheKey, json_encode($data), $this->namespace);
+            $data = Pi::service('cache')->setItem(
+                $cacheKey,
+                json_encode($data),
+                $this->namespace
+            );
         }
 
         return $status;
     }
 
+    /**
+     * Set registry key
+     *
+     * @param string $key
+     * @return $this
+     */
     public function setKey($key)
     {
         $this->registryKey = $key;
+
         return $this;
     }
 
+    /**
+     * Clear cached content
+     *
+     * @param string $namespace
+     * @return $this
+     */
     public function clear($namespace = '')
     {
-        /*
-        if ($this->cache() && method_exists($this->cache(), 'clearByNamespace')) {
-            $this->cache()->clearByNamespace($this->getNamespace($namespace));
-        }
-        */
-        Pi::service('cache')->clearByNamespace($this->getNamespace($namespace));
+        Pi::service('cache')->clearByNamespace(
+            $this->getNamespace($namespace)
+        );
 
         return $this;
     }
 
+    /**
+     * Flush all cached contents
+     *
+     * @return $this
+     */
     public function flush()
     {
         $this->flushByModules();
@@ -293,6 +314,11 @@ abstract class AbstractRegistry
         return $this;
     }
 
+    /**
+     * Flush cached contents by modules
+     *
+     * @return $this
+     */
     public function flushByModules()
     {
         $modules = Pi::service('module')->meta();
@@ -303,6 +329,11 @@ abstract class AbstractRegistry
         return $this;
     }
 
+    /**
+     * Flush cached contents by sections
+     *
+     * @return $this
+     */
     public function flushBySections()
     {
         $sections = array(
@@ -316,10 +347,21 @@ abstract class AbstractRegistry
 
         return $this;
     }
-    /*
-    public function read() {}
-    public function create() {}
-    public function delete() {}
-    public function flush() {}
-    */
+
+    /**
+     * Read data from cache storage
+     *
+     * In case data are not available in cache storage,
+     * they will be fetched and stored into cache storage
+     *
+     * @return array
+     */
+    abstract public function read();
+
+    /**
+     * Create data in cache storage
+     *
+     * @return bool
+     */
+    abstract public function create();
 }

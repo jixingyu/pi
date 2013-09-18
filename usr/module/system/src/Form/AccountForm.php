@@ -1,21 +1,10 @@
 <?php
 /**
- * User account form
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Module\System
- * @subpackage      Form
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Module\System\Form;
@@ -24,8 +13,14 @@ use Pi;
 use Pi\Form\Form as BaseForm;
 use Pi\Application\Db\User\RowGateway\Account;
 
+/**
+ * Account form
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 class AccountForm extends BaseForm
 {
+    /** @var Account User account model */
     protected $user;
 
     /**
@@ -40,37 +35,41 @@ class AccountForm extends BaseForm
         parent::__construct($name);
     }
 
-    /*
-    public function getInputFilter()
-    {
-        if (!$this->filter) {
-            $this->filter = new AccountFilter;
-        }
-        return $this->filter;
-    }
-    */
-
+    /**
+     * Initialization
+     */
     public function init()
     {
         $this->add(array(
+            'type'          => 'text',
             'name'          => 'identity',
             'options'       => array(
                 'label' => __('User account'),
             ),
             'attributes'    => array(
-                'type'  => 'text',
                 'value' => $this->user->identity,
             ),
         ));
 
         $this->add(array(
+            'type'          => 'text',
             'name'          => 'name',
             'options'       => array(
                 'label' => __('Display name'),
             ),
             'attributes'    => array(
-                'type'  => 'text',
                 'value' => $this->user->name,
+            ),
+        ));
+
+        $this->add(array(
+            'type'          => 'date_select',
+            'name'          => 'birthdate',
+            'options'       => array(
+                'label' => __('Birthdate'),
+            ),
+            'attributes'    => array(
+                'value' => $this->user->birthdate,
             ),
         ));
 
@@ -80,9 +79,9 @@ class AccountForm extends BaseForm
         ));
 
         $this->add(array(
+            'type'  => 'hidden',
             'name'  => 'id',
             'attributes'    => array(
-                'type'  => 'hidden',
                 'value' => $this->user->id,
             ),
         ));

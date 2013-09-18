@@ -1,20 +1,10 @@
 <?php
 /**
- * Pi SysLog Writer
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @package         Pi\Log
- * @since           3.0
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Pi\Log\Writer;
@@ -25,11 +15,15 @@ use Pi\Log\Formatter\Syslog as SyslogFormatter;
 use Zend\Log\Writer\AbstractWriter;
 use Zend\Log\Formatter\FormatterInterface;
 
+/**
+ * Syslog writer
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 class Syslog extends AbstractWriter
 {
     /**
-     * Maps Pi\Log\Logger priorities to PHP's syslog priorities
-     *
+     * Maps Pi\Log\Logger priorities to PHP's Syslog priorities
      * @var array
      */
     protected $priorities = array(
@@ -45,42 +39,36 @@ class Syslog extends AbstractWriter
 
     /**
      * The default log priority - for unmapped custom priorities
-     *
-     * @var string
+     * @var int
      */
     protected $defaultPriority = LOG_NOTICE;
 
     /**
      * Last application name set by a syslog-writer instance
-     *
      * @var string
      */
     protected static $lastApplication;
 
     /**
      * Last facility name set by a syslog-writer instance
-     *
      * @var string
      */
     protected static $lastFacility;
 
     /**
      * Application name used by this syslog-writer instance
-     *
      * @var string
      */
     protected $appName = 'Pi\Log';
 
     /**
      * Facility used by this syslog-writer instance
-     *
      * @var int
      */
     protected $facility = LOG_USER;
 
     /**
      * Types of program available to logging of message
-     *
      * @var array
      */
     protected $validFacilities = array();
@@ -88,8 +76,8 @@ class Syslog extends AbstractWriter
     /**
      * Constructor
      *
-     * @param  array $params Array of options; may include "application" and "facility" keys
-     * @return Syslog
+     * @param array $params
+     *      Array of options; may include "application" and "facility" keys
      */
     public function __construct(array $params = array())
     {
@@ -160,8 +148,8 @@ class Syslog extends AbstractWriter
      * Set syslog facility
      *
      * @param int $facility Syslog facility
-     * @return Syslog
-     * @throws Exception\InvalidArgumentException for invalid log facility
+     * @return self
+     * @throws \InvalidArgumentException for invalid log facility
      */
     public function setFacility($facility)
     {
@@ -175,7 +163,9 @@ class Syslog extends AbstractWriter
 
         if (!in_array($facility, $this->validFacilities)) {
             throw new \InvalidArgumentException(
-            	'Invalid log facility provided; please see http://php.net/openlog for a list of valid facility values'
+            	'Invalid log facility provided;'
+                . ' please see http://php.net/openlog'
+                . ' for a list of valid facility values'
             );
         }
 
@@ -189,6 +179,7 @@ class Syslog extends AbstractWriter
 
         $this->facility = $facility;
         $this->initializeSyslog();
+
         return $this;
     }
 
@@ -196,7 +187,7 @@ class Syslog extends AbstractWriter
      * Set application name
      *
      * @param string $appName Application name
-     * @return Syslog
+     * @return self
      */
     public function setApplicationName($appName)
     {
@@ -206,11 +197,12 @@ class Syslog extends AbstractWriter
 
         $this->appName = $appName;
         $this->initializeSyslog();
+
         return $this;
     }
 
     /**
-     * Close syslog.
+     * Close syslog
      *
      * @return void
      */

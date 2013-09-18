@@ -1,29 +1,17 @@
 <?php
 /**
- * Router
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Pi\Mvc
- * @subpackage      Router
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Pi\Mvc\Router\Http;
 
-use Zend\Mvc\Router\Http\TreeRouteStack as RouteStack;
-
 use Pi;
 use Pi\Mvc\Router\RoutePluginManager;
+use Zend\Mvc\Router\Http\TreeRouteStack as RouteStack;
 use Zend\Mvc\Router\PriorityList;
 use Zend\Stdlib\RequestInterface as Request;
 use Zend\Mvc\Router\SimpleRouteStack;
@@ -31,33 +19,33 @@ use Zend\Mvc\Router\Http\RouteInterface;
 use Zend\Uri\Http as HttpUri;
 use Zend\Mvc\Router\Http\RouteMatch;
 
+/**
+ * Tree RouteStack
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 class TreeRouteStack extends RouteStack
 {
     /**
      * Stack containing all extra routes, potentially for assemble()
-     *
      * @var PriorityList
      */
     protected $routesExtra;
 
     /**
      * Base URL.
-     *
      * @var string
      */
     protected $baseUrl;
 
     /**
      * Request URI.
-     *
      * @var HttpUri
      */
     protected $requestUri;
 
     /**
      * Create a new simple route stack.
-     *
-     * @return void
      */
     public function __construct()
     {
@@ -71,6 +59,7 @@ class TreeRouteStack extends RouteStack
      * init(): defined by SimpleRouteStack.
      *
      * @see    SimpleRouteStack::init()
+     * @return void
      */
     protected function init()
     {
@@ -80,22 +69,27 @@ class TreeRouteStack extends RouteStack
     /**
      * routeFromArray(): defined by SimpleRouteStack.
      *
-     * @see    SimpleRouteStack::routeFromArray()
-     * @param  array|Traversable $specs
-     * @return Route
+     * @param array|\Traversable $specs
+     *
+     * @throws \RuntimeException
+     * @return RouteInterface
      */
     protected function routeFromArray($specs)
     {
         $route = parent::routeFromArray($specs);
 
         if (!$route instanceof RouteInterface) {
-            throw new \RuntimeException('Given route does not implement HTTP route interface');
+            throw new \RuntimeException(
+                'Given route does not implement HTTP route interface'
+            );
         }
 
         if (isset($specs['child_routes'])) {
             $options = array(
                 'route'         => $route,
-                'may_terminate' => (isset($specs['may_terminate']) && $specs['may_terminate']),
+                'may_terminate' => (isset($specs['may_terminate'])
+                    && $specs['may_terminate']
+                ),
                 'child_routes'  => $specs['child_routes'],
                 'route_plugins' => $this->routePluginManager,
             );
@@ -112,11 +106,14 @@ class TreeRouteStack extends RouteStack
     /**
      * match(): defined by BaseRoute interface.
      *
-     * @see    Route::match()
-     * @param  Request $request
-     * @return RouteMatch
+     * @see Route::match()
+     *
+     * @param Request   $request
+     * @param string    $routeName
+     *
+     * @return RouteMatch|null
      */
-    public function match(Request $request)
+    public function match(Request $request, $routeName = '')
     {
         if (!method_exists($request, 'getUri')) {
             return null;
@@ -133,13 +130,21 @@ class TreeRouteStack extends RouteStack
             $this->setRequestUri($uri);
         }
 
-        // Match aginst base URI
+        // Specified route
+        if ($routeName) {
+            $route  = $this->routes->get($routeName)
+                ?: $this->extraRoute($routeName);
+            $routes = array($routeName => $route);
+        // Not specified
+        } else {
+            $routes = $this->routes;
+        }
+
+        // Match against base URI
         if ($baseUrlLength !== null) {
             $pathLength = strlen($uri->getPath()) - $baseUrlLength;
-
-            foreach ($this->routes as $name => $route) {
-
-                //if (($match = $route->match($request, $baseUrlLength)) instanceof RouteMatch && $match->getLength() === $pathLength) {
+            //foreach ($this->routes as $name => $route) {
+            foreach ($routes as $name => $route) {
                 $match = $route->match($request, $baseUrlLength);
                 if (!$match instanceof RouteMatch) {
                     continue;
@@ -148,18 +153,19 @@ class TreeRouteStack extends RouteStack
                 if ($matchedLength === $pathLength) {
                     $match->setMatchedRouteName($name);
 
-                    foreach ($this->defaultParams as $name => $value) {
-                        if ($match->getParam($name) === null) {
-                            $match->setParam($name, $value);
+                    foreach ($this->defaultParams as $key => $value) {
+                        if ($match->getParam($key) === null) {
+                            $match->setParam($key, $value);
                         }
                     }
                     return $match;
                 }
             }
-        // Match aginst simple URI
+        // Match against simple URI
         } else {
             //return parent::match($request);
-            foreach ($this->routes as $name => $route) {
+            //foreach ($this->routes as $name => $route) {
+            foreach ($routes as $name => $route) {
                 $match = $route->match($request);
                 if ($match instanceof RouteMatch) {
                     $match->setMatchedRouteName($name);
@@ -182,9 +188,13 @@ class TreeRouteStack extends RouteStack
      * assemble(): defined by Route interface.
      *
      * @see    Route::assemble()
+     *
      * @param  array $params
      * @param  array $options
-     * @return mixed
+     *
+     * @throws \RuntimeException
+     * @throws \InvalidArgumentException
+     * @return string
      */
     public function assemble(array $params = array(), array $options = array())
     {
@@ -193,11 +203,11 @@ class TreeRouteStack extends RouteStack
         }
 
         $names  = explode('/', $options['name'], 2);
-        $name   = $this->canonizeRoute($names[0]);
+        $name   = $names[0];
         $route  = $this->routes->get($name);
 
         /**#@+
-         *  Load extra routes if called route is not found in current route list
+         *  Load extra routes if called route not found in current route list
          */
         if (!$route) {
             $route = $this->extraRoute($name);
@@ -205,22 +215,30 @@ class TreeRouteStack extends RouteStack
         /**#@-**/
 
         if (!$route) {
-            throw new \RuntimeException(sprintf('Route with name "%s" not found', $name));
+            throw new \RuntimeException(
+                sprintf('Route with name "%s" not found', $name)
+            );
         }
 
         if (isset($names[1])) {
-            $options['name'] = $this->canonizeRoute($names[1]);
+            $options['name'] = $names[1];
         } else {
             unset($options['name']);
         }
 
-        if (!isset($options['only_return_path']) || !$options['only_return_path']) {
+        if (!isset($options['only_return_path'])
+            || !$options['only_return_path']
+        ) {
             if (!isset($options['uri'])) {
                 $uri = new HttpUri();
 
-                if (isset($options['force_canonical']) && $options['force_canonical']) {
+                if (isset($options['force_canonical'])
+                    && $options['force_canonical']
+                ) {
                     if ($this->requestUri === null) {
-                        throw new \RuntimeException('Request URI has not been set');
+                        throw new \RuntimeException(
+                            'Request URI has not been set'
+                        );
                     }
 
                     $uri->setScheme($this->requestUri->getScheme())
@@ -233,12 +251,22 @@ class TreeRouteStack extends RouteStack
                 $uri = $options['uri'];
             }
 
-            $path = $this->baseUrl . $route->assemble(array_merge($this->defaultParams, $params), $options);
+            $path = $this->baseUrl
+                  . $route->assemble(
+                      array_merge($this->defaultParams, $params),
+                      $options
+                    );
 
-            if ((isset($options['force_canonical']) && $options['force_canonical']) || $uri->getHost() !== null) {
+            if ((isset($options['force_canonical'])
+                    && $options['force_canonical']
+                )
+                || $uri->getHost() !== null
+            ) {
                 if ($uri->getScheme() === null) {
                     if ($this->requestUri === null) {
-                        throw new \RuntimeException('Request URI has not been set');
+                        throw new \RuntimeException(
+                            'Request URI has not been set'
+                        );
                     }
 
                     $uri->setScheme($this->requestUri->getScheme());
@@ -250,18 +278,23 @@ class TreeRouteStack extends RouteStack
             }
         }
 
-        return $this->baseUrl . $route->assemble(array_merge($this->defaultParams, $params), $options);
+        return $this->baseUrl
+            . $route->assemble(
+                array_merge($this->defaultParams, $params),
+                $options
+            );
     }
 
     /**
      * Set the base URL.
      *
      * @param  string $baseUrl
-     * @return self
+     * @return $this
      */
     public function setBaseUrl($baseUrl)
     {
         $this->baseUrl = rtrim($baseUrl, '/');
+
         return $this;
     }
 
@@ -279,11 +312,12 @@ class TreeRouteStack extends RouteStack
      * Set the request URI.
      *
      * @param  HttpUri $uri
-     * @return self
+     * @return $this
      */
     public function setRequestUri(HttpUri $uri)
     {
         $this->requestUri = $uri;
+
         return $this;
     }
 
@@ -298,7 +332,9 @@ class TreeRouteStack extends RouteStack
     }
 
     /**
-     * Get an extra route which does not belong to current section; If the extra routes stack is not loaded, load them from route registry cache
+     * Get an extra route which does not belong to current section;
+     * If the extra routes stack is not loaded,
+     * load them from route registry cache
      *
      * @param string $name
      * @return RouteInterface|null
@@ -307,28 +343,17 @@ class TreeRouteStack extends RouteStack
     {
         if (null == $this->routesExtra) {
             $this->routesExtra = new PriorityList();
-            $extraConfig = (array) Pi::service('registry')->route->read(Pi::engine()->section(), true);
+            $extraConfig = (array) Pi::registry('route')->read(
+                Pi::engine()->section(),
+                true
+            );
             foreach ($extraConfig as $key => $options) {
                 $route = $this->routeFromArray($options);
                 $priority = isset($route->priority) ? $route->priority : null;
                 $this->routesExtra->insert($key, $route, $priority);
             }
         }
+
         return $this->routesExtra->get($name);
-    }
-
-    /**
-     * Canonizes relative module route by transliterate [.route] to [module-route]
-     *
-     * @param string $name
-     * @return string
-     */
-    protected function canonizeRoute($name)
-    {
-        if ('.' == $name[0]) {
-            $name = Pi::service('module')->current() . '-' . substr($name, 1);
-        }
-
-        return $name;
     }
 }

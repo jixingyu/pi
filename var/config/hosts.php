@@ -1,43 +1,40 @@
 <?php
 /**
+ * Pi Engine (http://pialog.org)
+ *
  * Pi Engine multi-host specifications
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @version         $Id$
  */
 
 return array(
     // Alias of hosts
+    // Root URL => identifier of specifications
     'alias' => array(
-        'http://pi'                 => 'default',
-        'http://www.pi'             => 'default',
-        'http://localhost/pi/www'   => 'default',
-        'http://pi-demo'            => 'demo',
-        'http://www.pi-demo'        => 'demo',
+        'http://pi-engine.org'      => 'default',
+        'http://www.pi-engine.org'  => 'default',
+        'http://pi-demo.org'        => 'demo',
+        'http://www.pi-demo.org'    => 'demo',
+        'http://pialog.org'         => 'org',
+        'http://www.pialog.org'     => 'org',
     ),
     // Host specifications
     'hosts' => array(
         // Specifications defined by files
-        'default'   => __DIR__ . '/host.php',
         'demo'      => __DIR__ . '/host.demo.php',
-        /*
+        'org'       => '/path/to/org/config/host.php',
+
         // Specifications defined instantly
         'default'       => array(
             // URIs to resources
             'uri'       => array(
-                'www'       => 'http://pi',
-                'upload'    => 'http://pi/upload',
-                'asset'     => 'http://pi/asset',
-                'static'    => 'http://pi/static',
+                'www'       => 'http://pi-engine.org',
+                'upload'    => 'http://pi-engine.org/upload',
+                'asset'     => 'http://pi-engine.org/asset',
+                'static'    => 'http://pi-engine.org/static',
             ),
             // Paths to resources
             'path'      => array(
@@ -45,15 +42,18 @@ return array(
                 'var'       => '/path/to/pi/var',
                 'module'    => '/path/to/pi/usr/module',
                 'theme'     => '/path/to/pi/usr/theme',
-                'upload'    => '/path/to/pi/www/upload',
-                'asset'     => '/path/to/pi/www/asset',
-                'static'    => '/path/to/pi/www/static',
-                'vendor'    => '/path/to/pi/lib/vendor',
-                'config'    => '/path/to/pi/var/config',
-                'cache'     => '/path/to/pi/var/cache',
-                'log'       => '/path/to/pi/var/log',
+
+                'upload'    => '/path/to/pi/upload',
+                'asset'     => '/path/to/pi/asset',
+                'static'    => '/path/to/pi/static',
+
+                'vendor'    => '/path/to/pi/vendor',
+
+                'config'    => '/path/to/pi/config',
+                'custom'    => '/path/to/pi/custom',
+                'cache'     => '/path/to/pi/cache',
+                'log'       => '/path/to/pi/log',
             ),
         ),
-        */
     ),
 );

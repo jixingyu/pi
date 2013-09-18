@@ -1,21 +1,11 @@
 <?php
 /**
- * Form element CAPTCHA helper
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Pi\Form
- * @subpackage      View
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
+ * @package         Form
  */
 
 namespace Pi\Form\View\Helper;
@@ -24,8 +14,33 @@ use Zend\Form\View\Helper\AbstractHelper;
 use Zend\Form\ElementInterface;
 use Zend\Captcha\AdapterInterface as CaptchaAdapter;
 
+/**
+ * CAPTCHA element helper
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 class FormCaptcha extends AbstractHelper
 {
+    /**
+     * Invoke helper as functor
+     *
+     * Proxies to {@link render()}.
+     *
+     * @param  null|ElementInterface $element
+     * @param  array $options
+     * @return string|self
+     */
+    public function __invoke(
+        ElementInterface $element = null,
+        $options = array()
+    ) {
+        if (null === $element) {
+            return $this;
+        }
+
+        return $this->render($element, $options);
+    }
+
     /**
      * Render the captcha
      *
@@ -35,12 +50,12 @@ class FormCaptcha extends AbstractHelper
      */
     public function render(ElementInterface $element, $options = array())
     {
-        // To ensure CAPTCHA is initialized
         $captcha = $element->getCaptcha();
 
-        if (!$captcha instanceof CaptchaAdapter) {
+        if ($captcha === null || !$captcha instanceof CaptchaAdapter) {
             throw new \DomainException(sprintf(
-                '%s requires that the element has a "captcha" attribute implementing Zend\Captcha\AdapterInterface; none found',
+                '%s requires that the element has a "captcha" attribute'
+                . ' implementing Zend\Captcha\AdapterInterface; none found',
                 __METHOD__
             ));
         }
@@ -50,13 +65,15 @@ class FormCaptcha extends AbstractHelper
         $renderer = $this->getView();
         if (!method_exists($renderer, 'plugin')) {
             throw new \DomainException(sprintf(
-                '%s requires that the renderer implements plugin(); it does not',
+                '%s requires that the renderer implements plugin();'
+                . ' it does not',
                 __METHOD__
             ));
         }
 
         $helper = $renderer->plugin($helper);
 
+        // Custom CAPTCHA view
         $separator = null;
         if (isset($options['separator'])) {
             $separator = $options['separator'];
@@ -81,31 +98,30 @@ class FormCaptcha extends AbstractHelper
     }
 
     /**
-     * Invoke helper as functor
+     * Set separator for display
      *
-     * Proxies to {@link render()}.
-     *
-     * @param  null|ElementInterface $element
-     * @param  array $options
-     * @return string|FormCaptcha
+     * @see Pi\Form\View\Helper\Captcha\Image
+     * @param string $separator
+     * @return FormCaptcha
      */
-    public function __invoke(ElementInterface $element = null, $options = array())
-    {
-        if (null === $element) {
-            return $this;
-        }
-        return $this->render($element, $options);
-    }
-
     public function setSeparator($separator)
     {
         $this->separator = $separator;
+
         return $this;
     }
 
+    /**
+     * Set CAPTCHA image display position
+     *
+     * @see Pi\Form\View\Helper\Captcha\Image
+     * @param string $position
+     * @return FormCaptcha
+     */
     public function setCaptchaPosition($position)
     {
         $this->captchaPosition = $position;
+
         return $this;
     }
 }

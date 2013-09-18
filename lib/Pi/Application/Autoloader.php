@@ -1,84 +1,88 @@
 <?php
 /**
- * Pi Autoloader
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @package         Application
- * @since           3.0
- * @version         $Id$
- */
-
-/**
- * Autoloader
- *
- * Autoloading priority:
- * 1. class map
- * 2. PSR standard
- *    2.1 module namespace
- *    2.2 Pi and Zend namespace
- *    2.3 registered namespace
- *    2.4 vendor namespace
- * 3. fallbacks
- *    3.1 custom autoloader
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Pi\Application;
 
+/**
+ * Autoloader handler
+ *
+ * Options are loaded in {@link Pi::init()}
+ *
+ * Autoloading priority:
+ *
+ * 1. class map
+ * 2. PSR standard
+ *    1. module namespace
+ *    2. Pi and Zend namespace
+ *    3. registered namespace
+ *    4. vendor namespace
+ * 3. fallbacks
+ *    1. custom autoloader
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 class Autoloader
 {
-    /**
-     * @var constant Top namespace for modules
-     */
+    /** @var string Top namespace for modules */
     const TOP_NAMESPACE_MODULE = 'Module';
 
+    /** @var string Top namespace for extras */
+    const TOP_NAMESPACE_EXTRA = 'Extra';
+
     /**
-     * @var constant Directory for module source code. Module classes are located in /usr/module/modulename/src/
-     *
+     * Directory for module and extra source code.
+     * Module classes are located in `/usr/module/<module-name>/src/`
+     * and extra classes in `/usr/extra/<module-name>/src/`
+     * @var string
      */
     const MODULE_SOURCE_DIRECTORY = 'src';
 
     /**
      * Namespace speparator
+     *
+     * @var string
      */
     const NS_SEPARATOR     = '\\';
 
     /**
-     * @var array Top namespace/directory pairs to match; Pi, Zend added by default
+     * Top namespace/directory pairs to match; Pi, Zend added by default
+     * @var array
      */
     protected $tops = array();
 
-    /**
-     * @var array Callbacks to locate class file
-     */
+    /** @var array Callbacks to locate class file */
     protected $callbacks = array();
 
     /**
      * Persist handler
+     *
      * @var string
      */
     protected $persist;
 
     /**
      * Directory of modules
+     *
      * @var string
      */
     protected $modulePath = '';
 
+    /**
+     * Directory of extras
+     * @var string
+     */
+    protected $extraPath = '';
+
     /**#@+
      * Factory variables
      */
-    /**
-     * @var array All autoloaders registered
-     */
+    /** @var array All autoloaders registered */
     protected $loaders = array();
     /**#@-*/
 
@@ -87,46 +91,59 @@ class Autoloader
      */
     /**
      * Registry of map files that have already been loaded
+     *
      * @var array
      */
     protected $mapsLoaded = array();
 
     /**
      * Class name/filename map
+     *
      * @var array
      */
     protected $map = array();
     /**#@-*/
 
     /**
-     * @var array Namespace/directory pairs to search; ZF library added by default
+     * Namespace/directory pairs to search; ZF library added by default
+     * @var array
      */
     protected $namespaces = array();
 
     /**
      * Constructor
      *
+     * Supported options:
+     *
+     *   - include_path:    path to set for vendors
+     *   - module_path:     path to modules
+     *   - extra_path:      path to extras
+     *   - top:             paths to top namespaces
+     *   - namespace:       paths to regular namespaces
+     *   - class_map:       class-path map
+     *
      * @param  array|Traversable $options
-     *          includepath - path to set for vendors
-     *          modulepath  - path to modules
-     *          top         - paths to top namespaces
-     *          namespace   - paths to regular namespaces
-     *          classmap    - class-path map
      * @return void
      */
     public function __construct($options = array())
     {
         // Include paths, adding vendor path
-        if (!empty($options['includepath'])) {
-            set_include_path(get_include_path() . \PATH_SEPARATOR . $options['includepath']);
+        if (!empty($options['include_path'])) {
+            set_include_path(
+                get_include_path() . PATH_SEPARATOR . $options['include_path']
+            );
         }
         // Module directory
-        if (!empty($options['modulepath'])) {
-            $this->modulePath = $options['modulepath'];
+        if (!empty($options['module_path'])) {
+            $this->modulePath = $options['module_path'];
+        }
+        // Extra directory
+        if (!empty($options['extra_path'])) {
+            $this->extraPath = $options['extra_path'];
         }
         // class map
-        if (!empty($options['classmap'])) {
-            $this->registerAutoloadMap($options['classmap']);
+        if (!empty($options['class_map'])) {
+            $this->registerAutoloadMap($options['class_map']);
         }
         // namespaces
         if (!empty($options['top'])) {
@@ -142,16 +159,18 @@ class Autoloader
     /**
      * Set persist handler for class/file map
      *
-     * @return Autoloader
+     * @param Persist\PersistInterface $persist
+     * @return $this
      */
     public function setPersist(Persist\PersistInterface $persist)
     {
         $this->persist = $persist;
+
         return $this;
     }
 
     /**
-     * Register the autoloader with spl_autoload registry
+     * Register the autoloader with {@link spl_autoload} registry
      *
      * @return void
      */
@@ -183,7 +202,8 @@ class Autoloader
     }
 
     /**
-     * Load by persist class map which is registered in standard autoloader or custom autoloader
+     * Load by persist class map which is registered in standard autoloader
+     * or custom autoloader
      *
      * @param  string $class
      * @return void
@@ -197,7 +217,11 @@ class Autoloader
         // If class is registered in persist and valid
         if (!empty($path)) {
             if (!include $path) {
-                trigger_error(sprintf('Class "%s" is not loaded from "%s"', $class, $path));
+                trigger_error(sprintf(
+                    'Class "%s" is not loaded from "%s"',
+                    $class,
+                    $path
+                ));
             }
         }
     }
@@ -206,6 +230,7 @@ class Autoloader
      * Load by PSR standard autoloader
      *
      * Autoloading order:
+     *
      *  1. Top namespaces: Pi, Zend, ...
      *  2. Zend namespace
      *  3. registered namespace with specified path
@@ -227,17 +252,46 @@ class Autoloader
         $top = substr($class, 0, $pos);
         // Module classes, Module\ModuleName\ClassNamespace\ClassName
         if (static::TOP_NAMESPACE_MODULE === $top) {
-            list($top, $module, $trimmedClass) = explode(static::NS_SEPARATOR, $class, 3);
-            $path = $this->modulePath . \DIRECTORY_SEPARATOR . strtolower($module) . \DIRECTORY_SEPARATOR . static::MODULE_SOURCE_DIRECTORY . \DIRECTORY_SEPARATOR;
-            $filePath = $this->transformClassNameToFilename($trimmedClass, $path);
+            list($top, $module, $trimmedClass) = explode(
+                static::NS_SEPARATOR,
+                $class,
+                3
+            );
+            $path = $this->modulePath . DIRECTORY_SEPARATOR
+                  . strtolower($module) . DIRECTORY_SEPARATOR
+                  . static::MODULE_SOURCE_DIRECTORY . DIRECTORY_SEPARATOR;
+            $filePath = $this->transformClassNameToFilename(
+                $trimmedClass,
+                $path
+            );
 
+        // Extra classes, Extra\ModuleName\ClassNamespace\ClassName
+        } elseif (static::TOP_NAMESPACE_EXTRA === $top) {
+            list($top, $module, $trimmedClass) = explode(
+                static::NS_SEPARATOR,
+                $class,
+                3
+            );
+            $path = $this->extraPath . DIRECTORY_SEPARATOR
+                  . strtolower($module) . DIRECTORY_SEPARATOR
+                  . static::MODULE_SOURCE_DIRECTORY . DIRECTORY_SEPARATOR;
+            $filePath = $this->transformClassNameToFilename(
+                $trimmedClass,
+                $path
+            );
         // Top namespaces
         } elseif (!empty($this->tops[$top])) {
             // Trim off leader
-            $trimmedClass = substr($class, strlen($top . static::NS_SEPARATOR));
+            $trimmedClass = substr(
+                $class,
+                strlen($top . static::NS_SEPARATOR)
+            );
             $path = $this->tops[$top];
             // Get file full path
-            $filePath = $this->transformClassNameToFilename($trimmedClass, $path);
+            $filePath = $this->transformClassNameToFilename(
+                $trimmedClass,
+                $path
+            );
         /*#@-*/
 
         } else {
@@ -247,7 +301,10 @@ class Autoloader
                     // Trim off leader
                     $trimmedClass = substr($class, strlen($leader));
                     // Get file full path
-                    $filePath = $this->transformClassNameToFilename($trimmedClass, $path);
+                    $filePath = $this->transformClassNameToFilename(
+                        $trimmedClass,
+                        $path
+                    );
                     // Break
                     break;
                 }
@@ -284,7 +341,7 @@ class Autoloader
      *
      * @param array|string  $callback array of (class, method) or function
      * @param bool          $append  append or prepend to callback list
-     * @return Autoloader
+     * @return $this
      */
     public function registerCallback($callback, $append = true)
     {
@@ -293,24 +350,28 @@ class Autoloader
         } else {
             array_unshift($this->callbacks, $callback);
         }
+
         return $this;
     }
 
     /**
      * Register multiple top namespace/directory pairs at once
      *
-     * @param  array $namespaces
-     * @return Autoloader
+     * @param  string[] $namespaces
+     * @return $this
      */
     public function registerTops($namespaces)
     {
         if (!is_array($namespaces) && !$namespaces instanceof \Traversable) {
-            throw new \InvalidArgumentException('Namespace pairs must be either an array or Traversable');
+            throw new \InvalidArgumentException(
+                'Namespace pairs must be either an array or Traversable'
+            );
         }
 
         foreach ($namespaces as $namespace => $directory) {
             $this->registerTop($namespace, $directory);
         }
+
         return $this;
     }
 
@@ -319,11 +380,12 @@ class Autoloader
      *
      * @param  string $namespace
      * @param  string $directory
-     * @return Autoloader
+     * @return $this
      */
     public function registerTop($namespace, $directory)
     {
         $this->tops[$namespace] = $this->normalizeDirectory($directory);
+
         return $this;
     }
 
@@ -339,9 +401,9 @@ class Autoloader
         return $directory
             . str_replace(
                 static::NS_SEPARATOR,
-                \DIRECTORY_SEPARATOR,
+                DIRECTORY_SEPARATOR,
                 $class
-            )
+              )
             . '.php';
     }
 
@@ -351,7 +413,8 @@ class Autoloader
     /**
      * Factory for autoloaders
      *
-     * Options should be an array or Traversable object of the following structure:
+     * Options should be an array or Traversable object with structure:
+     *
      * <code>
      * array(
      *     '<autoloader class name>' => $autoloaderOptions,
@@ -377,7 +440,7 @@ class Autoloader
     {
         if (!is_array($options) && !($options instanceof \Traversable)) {
             throw new \InvalidArgumentException(
-                             'Options provided must be an array or Traversable'
+                'Options provided must be an array or Traversable'
             );
         }
 
@@ -388,7 +451,7 @@ class Autoloader
             if (!isset($this->loaders[$class])) {
                 if (!class_exists($class)) {
                     throw new \InvalidArgumentException(
-                                sprintf('Autoloader class "%s" not loaded', $class)
+                        sprintf('Autoloader class "%s" not loaded', $class)
                     );
                 }
                 // Instantiate autoloader
@@ -416,7 +479,7 @@ class Autoloader
      * classname/file pairs.
      *
      * @param  string|array $location
-     * @return Autoloader
+     * @return $this
      */
     public function registerAutoloadMap($map)
     {
@@ -428,7 +491,9 @@ class Autoloader
         }
 
         if (!is_array($map)) {
-            throw new \InvalidArgumentException('Map file provided does not return a map');
+            throw new \InvalidArgumentException(
+                'Map file provided does not return a map'
+            );
         }
 
         $this->map = array_merge($this->map, $map);
@@ -444,16 +509,19 @@ class Autoloader
      * Register many autoload maps at once
      *
      * @param  array $locations
-     * @return Autoloader
+     * @return $this
      */
     public function registerAutoloadMaps($locations)
     {
         if (!is_array($locations) && !($locations instanceof \Traversable)) {
-            throw new \InvalidArgumentException('Map list must be an array or implement Traversable');
+            throw new \InvalidArgumentException(
+                'Map list must be an array or implement Traversable'
+            );
         }
         foreach ($locations as $location) {
             $this->registerAutoloadMap($location);
         }
+
         return $this;
     }
 
@@ -475,13 +543,15 @@ class Autoloader
      * location.
      *
      * @param  string $location
-     * @return Autoloader|mixed
+     * @return $this|mixed
      * @throws \InvalidArgumentException for nonexistent locations
      */
     protected function loadMapFromFile($location)
     {
         if (!file_exists($location)) {
-            throw new \InvalidArgumentException('Map file provided does not exist');
+            throw new \InvalidArgumentException(
+                'Map file provided does not exist'
+            );
         }
 
         if (!$path = static::realPharPath($location)) {
@@ -508,13 +578,21 @@ class Autoloader
     public static function realPharPath($path)
     {
         if (strpos($path, 'phar:///') !== 0) {
-            return;
+            return '';
         }
 
-        $parts = explode('/', str_replace(array('/','\\'), '/', substr($path, 8)));
-        $parts = array_values(array_filter($parts, function($p) { return ($p !== '' && $p !== '.'); }));
+        $parts = explode(
+            '/',
+            str_replace(array('/','\\'), '/', substr($path, 8))
+        );
+        $parts = array_values(array_filter(
+            $parts,
+            function($p) {
+                return ($p !== '' && $p !== '.');
+            }
+        ));
 
-        array_walk($parts, function ($value, $key) use(&$parts) {
+        array_walk($parts, function ($value, $key) use (&$parts) {
             if ($value === '..') {
                 unset($parts[$key], $parts[$key-1]);
                 $parts = array_values($parts);
@@ -524,6 +602,8 @@ class Autoloader
         if (file_exists($realPath = 'phar:///' . implode('/', $parts))) {
             return $realPath;
         }
+
+        return '';
     }
     /*#@-*/
 
@@ -535,12 +615,13 @@ class Autoloader
      *
      * @param  string $namespace
      * @param  string $directory
-     * @return Autoloader
+     * @return $this
      */
     public function registerNamespace($namespace, $directory)
     {
         $namespace = $namespace . static::NS_SEPARATOR;
         $this->namespaces[$namespace] = $this->normalizeDirectory($directory);
+
         return $this;
     }
 
@@ -548,17 +629,20 @@ class Autoloader
      * Register many namespace/directory pairs at once
      *
      * @param  array $namespaces
-     * @return Autoloader
+     * @return $this
      */
     public function registerNamespaces($namespaces)
     {
         if (!is_array($namespaces) && !$namespaces instanceof \Traversable) {
-            throw new \InvalidArgumentException('Namespace pairs must be either an array or Traversable');
+            throw new \InvalidArgumentException(
+                'Namespace pairs must be either an array or Traversable'
+            );
         }
 
         foreach ($namespaces as $namespace => $directory) {
             $this->registerNamespace($namespace, $directory);
         }
+
         return $this;
     }
 
@@ -572,15 +656,22 @@ class Autoloader
     {
         $last = $directory[strlen($directory) - 1];
         if (in_array($last, array('/', '\\'))) {
-            $directory[strlen($directory) - 1] = \DIRECTORY_SEPARATOR;
+            $directory[strlen($directory) - 1] = DIRECTORY_SEPARATOR;
             return $directory;
         }
-        $directory .= \DIRECTORY_SEPARATOR;
+        $directory .= DIRECTORY_SEPARATOR;
+
         return $directory;
     }
     /*#@-*/
 }
 
+/**
+ * Interface for autoloaders to be registered with "spl_autoload_register"
+ *
+ * @see http://php.net/manual/en/function.spl-autoload-register.php
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 interface SplAutoloader
 {
     /**
@@ -608,12 +699,12 @@ interface SplAutoloader
      * Register the autoloader with spl_autoload registry
      *
      * Typically, the body of this will simply be:
+     *
      * <code>
-     * spl_autoload_register(array($this, 'autoload'));
+     *  spl_autoload_register(array($this, 'autoload'));
      * </code>
      *
      * @return void
      */
-    //public function register();
     public function register($throw = true, $prepend = false);
 }

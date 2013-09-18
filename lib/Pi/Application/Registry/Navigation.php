@@ -1,36 +1,34 @@
 <?php
 /**
- * Pi cache registry
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Pi\Application
- * @subpackage      Registry
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
+ * @package         Registry
  */
 
 namespace Pi\Application\Registry;
+
 use Pi;
 use Pi\Acl\Acl as AclManager;
 
+/**
+ * Navigation list
+ *
+ * Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 class Navigation extends AbstractRegistry
 {
+    /** @var string Module name */
     protected $module;
-    protected $section = 'front';
 
-    protected $translator;
+    /** @var string Section */
+    protected $section = 'front';
 
     /**
      * Columns for URI pages
+     *
      * @var array
      */
     protected $uriColumns = array(
@@ -52,6 +50,7 @@ class Navigation extends AbstractRegistry
 
     /**
      * Columns for MVC pages
+     *
      * @var array
      */
     protected $mvcColumns = array(
@@ -75,14 +74,11 @@ class Navigation extends AbstractRegistry
         'params',
     );
 
-    protected function loadDynamic($options)
+    /**
+     * {@inheritDoc}
+     */
+    protected function loadDynamic($options = array())
     {
-        /*
-        if (isset($options['module']) && !isset($options['domain'])) {
-            $options['domain'] = $options['module'];
-        }
-        */
-
         $name = $options['name'];
         if ('front' == $name) {
             return $this->loadFront($options);
@@ -98,14 +94,19 @@ class Navigation extends AbstractRegistry
                 //$this->route = 'default';
             } else {
                 $this->section = $nav->section;
-                //$this->route = ('admin' == $nav->section) ? 'admin' : 'default';
             }
         }
 
         return $this->loadNavigation($options);
     }
 
-    protected function loadNavigation($options)
+    /**
+     * Load navigation data
+     *
+     * @param array $options
+     * @return array
+     */
+    protected function loadNavigation($options = array())
     {
         $name = $options['name'];
         $locale = $options['locale'];
@@ -117,7 +118,7 @@ class Navigation extends AbstractRegistry
 
         $row = Pi::model('navigation_node')->find($name, 'navigation');
         if (!$row) {
-            return array();
+            return false;
         }
         $this->module = $row->module;
 
@@ -133,10 +134,14 @@ class Navigation extends AbstractRegistry
         return $navigation;
     }
 
-    protected function loadFront($options)
+    /**
+     * Load navigation of front section
+     *
+     * @param array $options
+     * @return array
+     */
+    protected function loadFront($options = array())
     {
-        //$this->section = 'front';
-        //$this->route = 'default';
         $options['section'] = 'front';
         $options['name'] = 'system-front';
 
@@ -146,14 +151,14 @@ class Navigation extends AbstractRegistry
     }
 
     /**
-     * Load admin nav data
+     * Load navigation of admin section
      *
      * NOTE: Only top level items are shown in a non-system module admin menu
      *
      * @param array $options
      * @return array
      */
-    protected function loadAdmin($options)
+    protected function loadAdmin($options = array())
     {
         $options['section'] = 'admin';
         //$this->route = 'admin';
@@ -164,11 +169,25 @@ class Navigation extends AbstractRegistry
         return $navigation;
     }
 
-    public function read($name = null, $module = null, $section = null, $role = null, $locale = '')
-    {
+    /**
+     * {@inheritDoc}
+     *
+     * @param string        $name
+     * @param string        $module
+     * @param string        $section
+     * @param string|null   $role
+     * @param string        $locale
+     */
+    public function read(
+        $name = '',
+        $module = '',
+        $section = '',
+        $role = null,
+        $locale = ''
+    ) {
         //$this->cache = false;
         if (null === $role) {
-            $role = Pi::registry('user')->role;
+            $role = Pi::service('user')->getUser()->role;
         }
         $options = compact('name', 'module', 'section', 'role', 'locale');
         $data = $this->loadData($options);
@@ -177,51 +196,67 @@ class Navigation extends AbstractRegistry
     }
 
     /**
-     * Add a module menu
+     * {@inheritDoc}
+     *
+     * @param string        $name
+     * @param string        $module
+     * @param string        $section
+     * @param string|null   $role
+     * @param string        $locale
      */
-    public function create($name = null, $module = null, $role = null, $locale = '')
-    {
+    public function create(
+        $name = '',
+        $module = '',
+        $role = null,
+        $locale = ''
+    ) {
         $this->clear('');
         $this->read($name, $module, $role, $locale);
+
         return true;
     }
 
-    public function setNamespace($meta = null)
+    /**
+     * {@inheritDoc}
+     */
+    public function setNamespace($meta = '')
     {
         return parent::setNamespace('');
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function clear($namespace = '')
     {
         parent::clear('');
+
         return $this;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function flush()
     {
         return $this->clear('');
     }
 
+    /**
+     * Translate navigation config
+     *
+     * @param array     $config
+     * @param string    $domain
+     * @param string    $locale
+     * @return array
+     */
     protected function translateConfig($config, $domain, $locale)
     {
-        /*
-        $this->translator = null;
-        if ($domain) {
-            $translateData = 'navigation';
-            $translator = clone Pi::service('i18n')->translator;
-            $translator->load(sprintf('module/%s:%s', $domain, $translateData), $locale);
-            $this->translator = $translator;
-        }
-        */
-
         if ($config) {
             Pi::service('i18n')->load($domain, $locale);
-
-            //d($config);
             foreach ($config as $p => &$page) {
                 $this->translatePage($page, $config, $p, true);
             }
-            //d($config);
         }
 
         return $config;
@@ -231,31 +266,44 @@ class Navigation extends AbstractRegistry
      * Canonize page data if callback is specified
      *
      * <ul>Note:
-     *  <li>Declaration: 'callback' must befined as a direct property of a page, as a direct method string, or an array of class and method
+     *  <li>Declaration:
+     *      'callback' must befined as a direct property of a page,
+     *      as a direct method string, or an array of class and method
      *      <ul>
      *          <li>Direct callback
+     *
      *              <code>
      *              $pages = array(
      *                  ...
      *                  'the-page'  => array(
      *                      'label' => 'The Page',
-     *                      'callback'  => 'Module\\Mymodule\\Navigation::thepage',
+     *                      'callback'  =>
+     *                          'Module\<ModuleName>\Navigation::thepage',
      *                  ),
      *                  ...
      *              );
      *              </code>
+     *
      *          <li>Callback with full class and method
+     *
      *              <code>
      *              $pages = array(
      *                  ...
      *                  'the-page'  => array(
      *                      'label' => 'The Page',
-     *                      'callback'  => array('Module\\Mymodule\\Navigation', 'thepage'),
+     *                      'callback'  => array(
+     *                          'Module\<ModuleName>\Navigation',
+     *                          'thepage'
+     *                      ),
      *                  ),
      *                  ...
      *              );
      *              </code>
-     *          <li>Callback with direct class and method, the class will be transilated to the module in which the page spec is defined
+     *
+     *          <li>Callback with direct class and method,
+     *              the class will be transilated to the module
+     *              in which the page spec is defined
+     *
      *              <code>
      *              $pages = array(
      *                  ...
@@ -266,10 +314,13 @@ class Navigation extends AbstractRegistry
      *                  ...
      *              );
      *              </code>
+     *
      *      </ul>
-     *  <li>Return: the return array shall be for the page itself/subpages, or for its parent
+     *  <li>Return: the return array shall be for the page itself/subpages,
+     *      or for its parent
      *      <ul>
      *          <li>For the page
+     *
      *              <code>
      *              $return = array(
      *                  ...
@@ -281,7 +332,10 @@ class Navigation extends AbstractRegistry
      *                  ),
      *              );
      *              </code>
-     *          <li>For the page's parent with replacement: the page will be replaced with p1, p2, etc. in its parent
+     *
+     *          <li>For the page's parent with replacement:
+     *              the page will be replaced with p1, p2, etc. in its parent
+     *
      *              <code>
      *              $return = array(
      *                  'parent' => array(
@@ -291,7 +345,11 @@ class Navigation extends AbstractRegistry
      *                  ),
      *              );
      *              </code>
-     *          <li>For the page's parent with insertion: the pages  p1, p2, etc. specified in 'pages' will be inserted into its parent before/after the page specified in 'position'
+     *
+     *          <li>For the page's parent with insertion: pages p1, p2, etc.
+     *              specified in 'pages' will be inserted into
+     *              its parent before/after the page specified in 'position'
+     *
      *              <code>
      *              $return = array(
      *                  'parent' => array(
@@ -304,7 +362,12 @@ class Navigation extends AbstractRegistry
      *                  ),
      *              );
      *              </code>
-     *          <li>For the page itself and its parent with insertion: the pages  p1, p2, etc. specified in 'pages' will be inserted into its parent before/after the page specified in 'position'
+     *
+     *          <li>For the page itself and its parent with insertion:
+     *              the pages  p1, p2, etc.
+     *              specified in 'pages' will be inserted into
+     *              its parent before/after the page specified in 'position'
+     *
      *              <code>
      *              $return = array(
      *                  ...
@@ -319,13 +382,14 @@ class Navigation extends AbstractRegistry
      *                  ),
      *              );
      *              </code>
+     *
      *      </ul>
      * </ul>
      *
-     * @see     Module\System\Navigation for details
-     * @param array $page
-     * @param array $parent
-     * @param string $pKey
+     * @see     \Module\System\Navigation for details
+     * @param array     $page   Page data to be canonized
+     * @param array     $parent Sibling of parent page
+     * @param string    $pKey   Key of parent in sibling
      * @return array
      */
     protected function canonizeCallback($page, &$parent, $pKey)
@@ -342,8 +406,13 @@ class Navigation extends AbstractRegistry
             list($class, $method) = $page['callback'];
 
             if (!class_exists($class)) {
-                $module = empty($page['module']) ? $this->module : $page['module'];
-                $class = sprintf('Module\\%s\\%s', ucfirst(Pi::service('module')->directory($module)), ucfirst($class));
+                $module = empty($page['module'])
+                    ? $this->module : $page['module'];
+                $class = sprintf(
+                    'Module\\%s\\%s',
+                    ucfirst(Pi::service('module')->directory($module)),
+                    ucfirst($class)
+                );
             }
 
             if (method_exists($class, $method)) {
@@ -405,12 +474,24 @@ class Navigation extends AbstractRegistry
         return $page;
     }
 
+    /**
+     * Canonize a page
+     *
+     * @param array     $page   Page data to be canonized
+     * @param array     $parent Sibling of parent page
+     * @param string    $pKey   Key of parent in sibling
+     * @param bool      $isTop  If the page is top level,
+     *      only top level menu is shown in non-system module admin
+     * @return array
+     */
     protected function canonizePage($page, &$parent, $pKey, $isTop = false)
     {
         $page = $this->canonizeCallback($page, $parent, $pKey);
 
         // @see: Zend\Navigation\Page\AbstractPage for identifying MVC pages
-        $isMvc = !empty($page['action']) || !empty($page['controller']) || !empty($page['route']);
+        $isMvc = !empty($page['action'])
+            || !empty($page['controller'])
+            || !empty($page['route']);
         if ($isMvc) {
             $validColumns = $this->mvcColumns;
         } else {
@@ -423,13 +504,26 @@ class Navigation extends AbstractRegistry
             }
         }
         // Only top level menu is shown in a non-system module back office
-        if ('admin' == $this->section && 'system' != $this->module && !$isTop) {
+        if ('admin' == $this->section
+            && 'system' != $this->module
+            && !$isTop
+        ) {
             $page['visible'] = 0;
         }
 
         return $page;
     }
 
+    /**
+     * Translate a page
+     *
+     * @param array     $page   Page data to be canonized
+     * @param array     $parent Sibling of parent page
+     * @param string    $pKey   Key of parent in sibling
+     * @param bool      $isTop  If the page is top level,
+     *      only top level menu is shown in non-system module admin
+     * @return array
+     */
     protected function translatePage(&$page, &$parent, $pKey, $isTop = false)
     {
         $page = $this->canonizePage($page, $parent, $pKey, $isTop);
@@ -443,18 +537,6 @@ class Navigation extends AbstractRegistry
         }
         $page['resource'] = null;
 
-        /*
-        // Translate
-        if ($this->translator) {
-            if (!empty($page['label'])) {
-                $page['label'] = $this->translator->translate($page['label']);
-            }
-            // translate title
-            if (!empty($page['title'])) {
-                $page['title'] = $this->translator->translate($page['title']);
-            }
-        }
-        */
         if (!empty($page['label'])) {
             $page['label'] = __($page['label']);
         }
@@ -472,18 +554,32 @@ class Navigation extends AbstractRegistry
         }
     }
 
+    /**
+     * Check if a page is accessible
+     *
+     * @param array $page
+     * @return bool
+     */
     public function isAllowed($page)
     {
         if (!empty($page['resource'])) {
             return $this->isAllowedResource($page['resource']);
         }
+
         return true;
     }
 
+    /**
+     * Check if a resource is allowed
+     *
+     * @param array $params
+     * @return bool
+     */
     protected function isAllowedResource($params)
     {
         $module = null;
-        $section = empty($params['section']) ? $this->section : $params['section'];
+        $section = empty($params['section'])
+            ? $this->section : $params['section'];
         $resource = $params['resource'];
         if (!empty($params['item'])) {
             $resource = array($resource, $params['item']);
@@ -494,6 +590,7 @@ class Navigation extends AbstractRegistry
         $acl = new AclManager($section);
         $acl->setModule($module);
         $result = $acl->checkAccess($resource, $privilege);
+
         return $result;
     }
 }

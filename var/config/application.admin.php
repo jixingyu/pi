@@ -1,24 +1,25 @@
 <?php
 /**
- * Pi Engine application specifications
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * Pi Engine admin application specifications
  *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @version         $Id$
  */
 
+// Inherite from front
 $config = include __DIR__ . '/application.front.php';
+
 // Translations
-$config['resource']['i18n']['translator']['global'][] = 'usr:admin';
-$config['resource']['i18n']['translator']['module'][] = 'admin';
+$config['resource']['i18n'] = array(
+    'translator'    => array(
+        'global'    => array('user:main', 'usr:admin'),
+        'module'    => array('main', 'admin'),
+    ),
+);
 
 // Permission ACL
 $config['resource']['acl'] = array(
@@ -34,6 +35,7 @@ $config['resource']['acl'] = array(
 
 // Render caching
 $config['resource']['render'] = false;
+
 // Audit
 /*
  * Options for recording:
@@ -51,5 +53,13 @@ $config['resource']['audit'] = array(
 
 // Admin mode detection
 $config['resource']['adminmode'] = array();
+
+// Session settings
+$config['resource']['session'] = array(
+    //'service'   => 'service.session-admin.php',
+);
+
+// Application service configuration
+$config['application']['view_manager']['layout'] = 'layout-admin';
 
 return $config;

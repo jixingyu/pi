@@ -1,30 +1,23 @@
 <?php
 /**
- * Pi module installer resource
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Pi\Application
- * @subpackage      Installer
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Pi\Application\Installer\Resource;
+
 use Pi;
 use Pi\Application\Installer\SqlSchema;
 
 /**
+ * Database setup
+ *
  * SQL file format
- * <code>
+ *
+ * <pre>
  *  CREATE TABLE `{test}` (
  *      `id`      int(10) unsigned        NOT NULL auto_increment,
  *      `message` varchar(255)            NOT NULL default '',
@@ -36,9 +29,15 @@ use Pi\Application\Installer\SqlSchema;
  *      `message` varchar(255)            NOT NULL default '',
  *      PRIMARY KEY  (`id`)
  *  ) ENGINE=InnoDB;
- * </code>
- * Translated format: global prefix 'pi_', module demo prefix 'demo_', system prefix 'core_'
- * <code>
+ * </pre>
+ *
+ * Translated format:
+ *
+ *  - global prefix 'pi_'
+ *  - module demo prefix 'demo_'
+ *  - system prefix 'core_'
+ *
+ * <pre>
  *  CREATE TABLE `pi_demo_test` (
  *      `id`      int(10) unsigned        NOT NULL auto_increment,
  *      `message` varchar(255)            NOT NULL default '',
@@ -50,28 +49,55 @@ use Pi\Application\Installer\SqlSchema;
  *      `message` varchar(255)            NOT NULL default '',
  *      PRIMARY KEY  (`id`)
  *  ) ENGINE=InnoDB;
- * </code>
+ * </pre>
  *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
  */
 class Database extends AbstractResource
 {
+    /**
+     * Canonize config
+     *
+     * @param array|string $config
+     *
+     * @return array
+     */
+    protected function canonizeConfig($config)
+    {
+        if (is_string($config)) {
+            $config = array('sqlfile' => $config);
+        }
+
+        return $config;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function installAction()
     {
         if (empty($this->config)) {
             return;
         }
 
-        if (empty($this->config['sqlfile'])) {
+        $config = $this->canonizeConfig($this->config);
+        if (empty($config['sqlfile'])) {
             return;
         }
         $module = $this->event->getParam('module');
-        $sqlFile = sprintf('%s/%s/%s', Pi::path('module'), $this->event->getParam('directory'), $this->config['sqlfile']);
+        $sqlFile = sprintf(
+            '%s/%s/%s',
+            Pi::path('module'),
+            $this->event->getParam('directory'),
+            $config['sqlfile']
+        );
         if (!file_exists($sqlFile)) {
             return array(
                 'status'    => false,
                 'message'   => sprintf('SQL file "%s" is not found.', $sqlFile)
             );
         }
+
         try {
             $status = SqlSchema::query($sqlFile, $module);
         } catch (\Exception $e) {
@@ -81,7 +107,11 @@ class Database extends AbstractResource
             );
         }
 
-        $schemaList = isset($this->config['schema']) ? $this->config['schema'] : array();
+        if (isset($config['schema'])) {
+            $schemaList = $config['schema'];
+        } else {
+            $schemaList = SqlSchema::fetchSchema($sqlFile);
+        }
         $modelSchema = Pi::model('module_schema');
         foreach($schemaList as $name => $type) {
             $status = $modelSchema->insert(array(
@@ -101,8 +131,11 @@ class Database extends AbstractResource
     }
 
     /**
-     * Module database table list is supposed to be updated during module upgrade,
-     * however we don't have a feasible solution yet. Thus module developers are encouraged to use $config['schema']
+     * {@inheritDoc}
+     *
+     * Module database table list is supposed to be updated
+     * during module upgrade, however we don't have a feasible solution yet.
+     * Thus module developers are encouraged to use $config['schema']
      */
     public function updateAction()
     {
@@ -110,7 +143,26 @@ class Database extends AbstractResource
             return;
         }
         $module = $this->event->getParam('module');
-        $schemaList = isset($this->config['schema']) ? $this->config['schema'] : array();
+
+        $config = $this->canonizeConfig($this->config);
+        if (isset($config['schema'])) {
+            $schemaList = $config['schema'];
+        } elseif (empty($config['sqlfile'])) {
+            $schemaList = array();
+        } else {
+            $sqlFile = sprintf(
+                '%s/%s/%s',
+                Pi::path('module'),
+                $this->event->getParam('directory'),
+                $config['sqlfile']
+            );
+            if (!file_exists($sqlFile)) {
+                $schemaList = array();
+            } else {
+                $schemaList = SqlSchema::fetchSchema($sqlFile);
+            }
+        }
+
         $modelSchema = Pi::model('module_schema');
         $rowset = $modelSchema->select(array('module' => $module));
         foreach ($rowset as $row) {
@@ -119,9 +171,10 @@ class Database extends AbstractResource
                 $row->delete();
                 $status = true;
                 if (!$status) {
+                    $msg = 'Deprecated schema "%s" is not removed.';
                     return array(
                         'status'    => false,
-                        'message'   => sprintf('Deprecated schema "%s" is not removed.', $name)
+                        'message'   => sprintf($msg, $name),
                     );
                 }
             } else {
@@ -145,16 +198,27 @@ class Database extends AbstractResource
         return true;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function uninstallAction()
     {
         $module = $this->event->getParam('module');
         $modelSchema = Pi::model('module_schema');
         $rowset = $modelSchema->select(array('module' => $module));
         foreach ($rowset as $table) {
-            $sql = sprintf('DROP %s IF EXISTS %s', $table->type, Pi::db()->prefix($table->name, $module));
-            Pi::db()->adapter()->query($sql, 'execute');
+            $sql = sprintf(
+                'DROP %s IF EXISTS %s',
+                $table->type,
+                Pi::db()->prefix($table->name, $module)
+            );
+            try {
+                Pi::db()->adapter()->query($sql, 'execute');
+            } catch (\Exception $e) {
+            }
         }
         $modelSchema->delete(array('module' => $module));
+
         return true;
     }
 }

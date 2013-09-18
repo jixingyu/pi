@@ -1,42 +1,34 @@
 <?php
 /**
- * View helper manager
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Pi\Mvc
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Pi\Mvc\Service;
 
-//use Zend\ServiceManager\AbstractPluginManager;
 use Zend\View\HelperPluginManager;
 use Zend\View\Helper;
 use Zend\View\Exception;
 use Zend\View\Renderer;
 
+/**
+ * View helper manager
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 class ViewHelperManager extends HelperPluginManager
 {
     /**
      * Default set of helpers
-     *
      * @var array
      */
     protected $invokableClasses = array();
 
     /**
      * Default set of helpers
-     *
      * @var array
      */
     protected $invokableList = array(
@@ -137,6 +129,10 @@ class ViewHelperManager extends HelperPluginManager
         'sitemap'               => 'View\Helper\Navigation\Sitemap',
     );
 
+    /**
+     * Helper locations
+     * @var string[]
+     */
     protected $helperLocations = array(
         'View\Helper',
         'View\Helper\Navigation',
@@ -156,12 +152,17 @@ class ViewHelperManager extends HelperPluginManager
      * @param  bool $usePeeringServiceManagers
      * @return Helper\HelperInterface
      */
-    public function get($name, $options = array(), $usePeeringServiceManagers = true)
-    {
+    public function get(
+        $name,
+        $options = array(),
+        $usePeeringServiceManagers = true
+    ) {
         // Canonize invokable class from name
         if (!$this->has($name) && !class_exists($name)) {
             // Lookup in default invokable list
-            $cname = strtolower(str_replace(array('-', '_', ' ', '\\', '/'), '', $name));
+            $cname = strtolower(
+                str_replace(array('-', '_', ' ', '\\', '/'), '', $name)
+            );
             if (isset($this->invokableList[$cname])) {
                 $invokableClass = 'Pi\\' . $this->invokableList[$cname];
                 if (!class_exists($invokableClass)) {
@@ -170,7 +171,9 @@ class ViewHelperManager extends HelperPluginManager
                 $name = $invokableClass;
             // Lookup in helper locations
             } else {
-                $class = str_replace(' ', '', ucwords(str_replace(array('-', '_', '\\', '/'), ' ', $name)));
+                $class = str_replace(' ', '', ucwords(
+                    str_replace(array('-', '_', '\\', '/'), ' ', $name)
+                ));
                 foreach ($this->helperLocations as $location) {
                     $invokableClass = 'Pi\\' . $location . '\\' . $class;
                     if (class_exists($invokableClass)) {
@@ -186,6 +189,18 @@ class ViewHelperManager extends HelperPluginManager
                 }
             }
         }
+
         return parent::get($name, $options, $usePeeringServiceManagers);
+    }
+
+    /**
+     * Skip translation for view helpers
+     *
+     * @param  Helper\HelperInterface $helper
+     * @return void
+     */
+    public function injectTranslator($helper)
+    {
+        return;
     }
 }

@@ -1,75 +1,96 @@
 <?php
 /**
- * Pi Engine sevice abstract class
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @package         Pi\Application
- * @subpackage      Service
- * @since           3.0
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
+ * @package         Service
  */
 
 namespace Pi\Application\Service;
+
 use Pi;
 
+/**
+ * Pi Engine sevice abstract class
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 abstract class AbstractService
 {
-    /**
-     * Identifier for file name of config data
-     * @var string
-     */
+    /** @var string Identifier for file name of config data */
     protected $fileIdentifier = '';
 
-    /**
-     * options
-     * @var array
-     */
+    /** @var array Options */
     protected $options = array();
 
     /**
      * Constructor
      *
-     * @param array     $options    Parameters to send to the service during instanciation
+     * @param array $options Parameters to send to the service
      */
     public function __construct($options = array())
     {
-        $this->setOptions($options);
+        // Set specified options
+        if ($options) {
+            $this->setOptions($options);
+        // Load default options from config file
+        } elseif ($this->fileIdentifier) {
+            $this->setOptions('service.' . $this->fileIdentifier . '.php');
+        }
     }
 
     /**
-     * Loads options
+     * Set options
      *
-     * Options data will be loaded from config file if defined
-     *
-     * @param array    $options
+     * @param array|string $options Array of options or config file name
+     * @return void
      */
     public function setOptions($options = array())
     {
-        if ($this->fileIdentifier && empty($options)) {
-            $options = Pi::config()->load('service.' . $this->fileIdentifier . '.php');
-            /*
-            if ($options) {
-                $options = array_merge($opt, $options);
-            } else {
-                $options = $opt;
-            }
-            */
+        if (is_string($options)) {
+            $options = Pi::config()->load($options) ?: array();
         }
-
-        $this->options = array_merge($this->options, $options);
+        $this->options = $options;
     }
 
+    /**
+     * Get options
+     *
+     * @return array
+     */
     public function getOptions()
     {
         return $this->options;
+    }
+
+    /**
+     * Set an option
+     *
+     * @param string $name
+     * @param mixed $value
+     *
+     * @return $this
+     */
+    public function setOption($name, $value)
+    {
+        $this->options[$name] = $value;
+
+        return $this;
+    }
+
+    /**
+     * Get an option
+     *
+     * @param string $name
+     *
+     * @return mixed|null
+     */
+    public function getOption($name)
+    {
+        $result = isset($this->options[$name]) ? $this->options[$name] : null;
+
+        return $result;
     }
 }

@@ -1,20 +1,10 @@
 <?php
 /**
- * Pi Logger
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @package         Pi\Log
- * @since           3.0
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Pi\Log;
@@ -24,6 +14,26 @@ use Traversable;
 use Zend\Log\Writer;
 use Zend\Stdlib\ArrayUtils;
 
+/**
+ * Logger
+ *
+ * With BSD Syslog message severities
+ *  {@link http://tools.ietf.org/html/rfc3164}
+ *
+ *  - EMERG
+ *  - ALERT
+ *  - CRIT
+ *  - ERR
+ *  - WARN
+ *  - NOTICE
+ *  - INFO
+ *  - DEBUG
+ *
+ * And Pi specific level:
+ *  - AUDIT
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 class Logger
 {
     /**
@@ -41,6 +51,7 @@ class Logger
 
     /**
      * For application data audit
+     * @var int
      */
     const AUDIT     = 16;
 
@@ -81,7 +92,7 @@ class Logger
     /**
      * Constructor
      *
-     * @return Logger
+     * @param array
      */
     public function __construct($options = array())
     {
@@ -93,13 +104,20 @@ class Logger
         }
     }
 
+    /**
+     * Get priority name
+     *
+     * @param int $priorityValue
+     * @return string|null
+     */
     public function priorityName($priorityValue)
     {
-        return isset($this->priorities[$priorityValue]) ? $this->priorities[$priorityValue] : null;
+        return isset($this->priorities[$priorityValue])
+            ? $this->priorities[$priorityValue] : null;
     }
 
     /**
-     * Shutdown all writers
+     * Shutdown all writers and write log messages to storages
      *
      * @return void
      */
@@ -128,38 +146,42 @@ class Logger
      *
      * @see    http://www.php.net/manual/en/function.date.php
      * @param  string $format
-     * @return Logger
+     * @return self
      */
     public function setDateTimeFormat($format)
     {
         $this->dateTimeFormat = (string) $format;
+
         return $this;
     }
 
     /**
      * Get writer instance
      *
-     * @param string $name
-     * @param array|null $options
+     * @param string        $name
+     * @param array|null    $options
      * @return Writer
      */
     public function writerPlugin($name, array $options = null)
     {
-        $class = __NAMESPACE__ . '\\Writer\\' . ucfirst($name);
+        $class = __NAMESPACE__ . '\Writer\\' . ucfirst($name);
         if (!class_exists($class)) {
-            $class = 'Zend\\Log\\Writer\\' . ucfirst($name);
+            $class = 'Zend\Log\Writer\\' . ucfirst($name);
         }
+
         return new $class($options);
     }
 
     /**
      * Add a writer to a logger
      *
-     * @param  string|Writer $writer
-     * @param  array $options
-     * @return Logger
+     * @param string|Writer $writer
+     * @param int $priority
+     * @param array $options
+     * @return self
      */
-    public function addWriter($writer, $priority = 1, array $options = array())
+    public function addWriter($writer, $priority = 1,
+        array $options = array())
     {
         if (is_string($writer)) {
             $writer = $this->writerPlugin($writer, $options);
@@ -169,7 +191,9 @@ class Logger
                 is_object($writer) ? get_class($writer) : gettype($writer)
             ));
         }
-        $priority = is_int($options) ? $options : (isset($options['priority']) ? $options['priority'] : 1);
+        $priority = is_int($options)
+            ? $options
+            : (isset($options['priority']) ? $options['priority'] : 1);
         $this->writers->insert($writer, $priority);
 
         return $this;
@@ -184,24 +208,30 @@ class Logger
     {
         return $this->writers;
     }
+
     /**
      * Set the writers
      *
      * @param  SplPriorityQueue $writers
-     * @throws Exception\InvalidArgumentException
-     * @return Logger
+     * @throws \InvalidArgumentException
+     * @return self
      */
     public function setWriters($writers)
     {
         if (!$writers instanceof SplPriorityQueue) {
-            throw new \InvalidArgumentException('Writers must be a SplPriorityQueue of Zend\Log\Writer');
+            throw new \InvalidArgumentException(
+                'Writers must be a SplPriorityQueue of Zend\Log\Writer'
+            );
         }
         foreach ($writers->toArray() as $writer) {
             if (!$writer instanceof Writer\WriterInterface) {
-                throw new \InvalidArgumentException('Writers must be a SplPriorityQueue of Zend\Log\Writer');
+                throw new \InvalidArgumentException(
+                    'Writers must be a SplPriorityQueue of Zend\Log\Writer'
+                );
             }
         }
         $this->writers = $writers;
+
         return $this;
     }
 
@@ -211,7 +241,7 @@ class Logger
      * @param  int $priority
      * @param  mixed $message
      * @param  array|Traversable|int $extra
-     * @return Logger
+     * @return self
      * @throws \InvalidArgumentException if message can't be cast to string
      * @throws \InvalidArgumentException if extra can't be iterated over
      */
@@ -270,9 +300,11 @@ class Logger
     }
 
     /**
+     * Log an EMERG message
+     *
      * @param string $message
      * @param array|Traversable $extra
-     * @return Logger
+     * @return self
      */
     public function emerg($message, $extra = array())
     {
@@ -280,9 +312,11 @@ class Logger
     }
 
     /**
+     * Log an ALERT message
+     *
      * @param string $message
      * @param array|Traversable $extra
-     * @return Logger
+     * @return self
      */
     public function alert($message, $extra = array())
     {
@@ -290,9 +324,11 @@ class Logger
     }
 
     /**
+     * Log a CRIT message
+     *
      * @param string $message
      * @param array|Traversable $extra
-     * @return Logger
+     * @return self
      */
     public function crit($message, $extra = array())
     {
@@ -300,9 +336,11 @@ class Logger
     }
 
     /**
+     * Log an ERR message
+     *
      * @param string $message
      * @param array|Traversable $extra
-     * @return Logger
+     * @return self
      */
     public function err($message, $extra = array())
     {
@@ -310,9 +348,11 @@ class Logger
     }
 
     /**
+     * Log a WARN message
+     *
      * @param string $message
      * @param array|Traversable $extra
-     * @return Logger
+     * @return self
      */
     public function warn($message, $extra = array())
     {
@@ -320,9 +360,11 @@ class Logger
     }
 
     /**
+     * Log a NOTICE message
+     *
      * @param string $message
      * @param array|Traversable $extra
-     * @return Logger
+     * @return self
      */
     public function notice($message, $extra = array())
     {
@@ -330,9 +372,11 @@ class Logger
     }
 
     /**
+     * Log an INFO message
+     *
      * @param string $message
      * @param array|Traversable $extra
-     * @return Logger
+     * @return self
      */
     public function info($message, $extra = array())
     {
@@ -340,9 +384,11 @@ class Logger
     }
 
     /**
+     * Log a DEBUG message
+     *
      * @param string $message
      * @param array|Traversable $extra
-     * @return Logger
+     * @return self
      */
     public function debug($message, $extra = array())
     {
@@ -350,9 +396,11 @@ class Logger
     }
 
     /**
+     * Log an AUDIT message
+     *
      * @param string $message
      * @param array|Traversable $extra
-     * @return Logger
+     * @return self
      */
     public function audit($message, $extra = array())
     {

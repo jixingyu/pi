@@ -1,36 +1,30 @@
 <?php
 /**
- * Pi Engine Setup Request
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @see             Zend\Controller\Request
- * @since           3.0
- * @package         Pi\Setup
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Pi\Setup;
 
+/**
+ * Request class
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 class Request
 {
     /**
      * Scheme for http
-     *
+     * @var string
      */
     const SCHEME_HTTP  = 'http';
 
     /**
      * Scheme for https
-     *
+     * @var string
      */
     const SCHEME_HTTPS = 'https';
 
@@ -42,7 +36,7 @@ class Request
 
     /**
      * Base URL of request
-     * @var string
+     * @var string|null
      */
     protected $baseUrl = null;
 
@@ -54,11 +48,6 @@ class Request
 
     /**
      * Constructor
-     *
-     * If a $uri is passed, the object will attempt to populate itself using
-     * that information.
-     *
-     * @return void
      */
     public function __construct()
     {
@@ -162,32 +151,39 @@ class Request
      * Set the REQUEST_URI on which the instance operates
      *
      * If no request URI is passed, uses the value in $_SERVER['REQUEST_URI'],
-     * $_SERVER['HTTP_X_REWRITE_URL'], or $_SERVER['ORIG_PATH_INFO'] + $_SERVER['QUERY_STRING'].
+     * $_SERVER['HTTP_X_REWRITE_URL'],
+     * or $_SERVER['ORIG_PATH_INFO'] + $_SERVER['QUERY_STRING'].
      *
      * @param string $requestUri
-     * @return
+     * @return self
      */
     public function setRequestUri($requestUri = null)
     {
         if ($requestUri === null) {
-            if (isset($_SERVER['HTTP_X_REWRITE_URL'])) { // check this first so IIS will catch
+            // check this first so IIS will catch
+            if (isset($_SERVER['HTTP_X_REWRITE_URL'])) {
                 $requestUri = $_SERVER['HTTP_X_REWRITE_URL'];
             } elseif (
-                // IIS7 with URL Rewrite: make sure we get the unencoded url (double slash problem)
+                // IIS7 with URL Rewrite:
+                // make sure we get the unencoded url (double slash problem)
                 isset($_SERVER['IIS_WasUrlRewritten'])
                 && $_SERVER['IIS_WasUrlRewritten'] == '1'
                 && isset($_SERVER['UNENCODED_URL'])
                 && $_SERVER['UNENCODED_URL'] != ''
-                ) {
+            ) {
                 $requestUri = $_SERVER['UNENCODED_URL'];
             } elseif (isset($_SERVER['REQUEST_URI'])) {
                 $requestUri = $_SERVER['REQUEST_URI'];
-                // Http proxy reqs setup request uri with scheme and host [and port] + the url path, only use url path
-                $schemeAndHttpHost = $this->getScheme() . '://' . $this->getHttpHost();
+                // Http proxy reqs setup request uri with scheme
+                // and host [and port] + the url path, only use url path
+                $schemeAndHttpHost = $this->getScheme() . '://'
+                                   . $this->getHttpHost();
                 if (strpos($requestUri, $schemeAndHttpHost) === 0) {
-                    $requestUri = substr($requestUri, strlen($schemeAndHttpHost));
+                    $requestUri = substr($requestUri,
+                                         strlen($schemeAndHttpHost));
                 }
-            } elseif (isset($_SERVER['ORIG_PATH_INFO'])) { // IIS 5.0, PHP as CGI
+            // IIS 5.0, PHP as CGI
+            } elseif (isset($_SERVER['ORIG_PATH_INFO'])) {
                 $requestUri = $_SERVER['ORIG_PATH_INFO'];
                 if (!empty($_SERVER['QUERY_STRING'])) {
                     $requestUri .= '?' . $_SERVER['QUERY_STRING'];
@@ -200,6 +196,7 @@ class Request
         }
 
         $this->requestUri = $requestUri;
+
         return $this;
     }
 
@@ -219,15 +216,18 @@ class Request
     }
 
     /**
-     * Set the base URL of the request; i.e., the segment leading to the script name
+     * Set the base URL of the request; i.e.,
+     * the segment leading to the script name
      *
      * E.g.:
+     *
      * - /admin
      * - /myapp
      * - /subdir/index.php
      *
      * Do not use the full URI when providing the base. The following are
      * examples of what not to use:
+     *
      * - http://example.com/admin (should be just /admin)
      * - http://example.com/subdir/index.php (should be just /subdir/index.php)
      *
@@ -236,7 +236,7 @@ class Request
      * ORIG_SCRIPT_NAME in its determination.
      *
      * @param mixed $baseUrl
-     * @return
+     * @return self
      */
     public function setBaseUrl($baseUrl = null)
     {
@@ -245,19 +245,29 @@ class Request
         }
 
         if ($baseUrl === null) {
-            $filename = (isset($_SERVER['SCRIPT_FILENAME'])) ? basename($_SERVER['SCRIPT_FILENAME']) : '';
+            $filename = (isset($_SERVER['SCRIPT_FILENAME']))
+                ? basename($_SERVER['SCRIPT_FILENAME']) : '';
 
-            if (isset($_SERVER['SCRIPT_NAME']) && basename($_SERVER['SCRIPT_NAME']) === $filename) {
+            if (isset($_SERVER['SCRIPT_NAME'])
+                && basename($_SERVER['SCRIPT_NAME']) === $filename
+            ) {
                 $baseUrl = $_SERVER['SCRIPT_NAME'];
-            } elseif (isset($_SERVER['PHP_SELF']) && basename($_SERVER['PHP_SELF']) === $filename) {
+            } elseif (isset($_SERVER['PHP_SELF'])
+                && basename($_SERVER['PHP_SELF']) === $filename
+            ) {
                 $baseUrl = $_SERVER['PHP_SELF'];
-            } elseif (isset($_SERVER['ORIG_SCRIPT_NAME']) && basename($_SERVER['ORIG_SCRIPT_NAME']) === $filename) {
-                $baseUrl = $_SERVER['ORIG_SCRIPT_NAME']; // 1and1 shared hosting compatibility
+            } elseif (isset($_SERVER['ORIG_SCRIPT_NAME'])
+                && basename($_SERVER['ORIG_SCRIPT_NAME']) === $filename
+            ) {
+                // 1and1 shared hosting compatibility
+                $baseUrl = $_SERVER['ORIG_SCRIPT_NAME'];
             } else {
-                // Backtrack up the script_filename to find the portion matching
+                // Backtrack up script_filename to find the portion matching
                 // php_self
-                $path    = isset($_SERVER['PHP_SELF']) ? $_SERVER['PHP_SELF'] : '';
-                $file    = isset($_SERVER['SCRIPT_FILENAME']) ? $_SERVER['SCRIPT_FILENAME'] : '';
+                $path    = isset($_SERVER['PHP_SELF'])
+                         ? $_SERVER['PHP_SELF'] : '';
+                $file    = isset($_SERVER['SCRIPT_FILENAME'])
+                         ? $_SERVER['SCRIPT_FILENAME'] : '';
                 $segs    = explode('/', trim($file, '/'));
                 $segs    = array_reverse($segs);
                 $index   = 0;
@@ -267,7 +277,10 @@ class Request
                     $seg     = $segs[$index];
                     $baseUrl = '/' . $seg . $baseUrl;
                     ++$index;
-                } while (($last > $index) && (false !== ($pos = strpos($path, $baseUrl))) && (0 != $pos));
+                } while (($last > $index)
+                    && (false !== ($pos = strpos($path, $baseUrl)))
+                    && (0 != $pos)
+                );
             }
 
             // Does the baseUrl have anything in common with the request_uri?
@@ -288,6 +301,7 @@ class Request
                 // directory portion of $baseUrl matches
                 $this->baseUrl = rtrim(dirname($baseUrl), '/');
                 $this->baseUrl .= '/';
+
                 return $this;
             }
 
@@ -301,6 +315,7 @@ class Request
                 // no match whatsoever; set it blank
                 //$this->baseUrl = '';
                 $this->baseUrl = '/';
+
                 return $this;
             }
 
@@ -308,8 +323,10 @@ class Request
             // out of baseUrl. $pos !== 0 makes sure it is not matching a value
             // from PATH_INFO or QUERY_STRING
             if ((strlen($requestUri) >= strlen($baseUrl))
-                && ((false !== ($pos = strpos($requestUri, $baseUrl))) && ($pos !== 0)))
-            {
+                && ((false !== ($pos = strpos($requestUri, $baseUrl)))
+                    && ($pos !== 0)
+                )
+            ) {
                 $baseUrl = substr($requestUri, 0, $pos + strlen($baseUrl));
             }
         }
@@ -318,6 +335,7 @@ class Request
         if ('.php' != substr($this->baseUrl, -4)) {
             $this->baseUrl .= '/';
         }
+
         return $this;
     }
 
@@ -351,8 +369,8 @@ class Request
      */
     public function getParam($key, $default = null)
     {
-        if (isset($this->_params[$key])) {
-            return $this->_params[$key];
+        if (isset($this->params[$key])) {
+            return $this->params[$key];
         } elseif (isset($_GET[$key])) {
             return $_GET[$key];
         } elseif (isset($_POST[$key])) {
@@ -373,7 +391,7 @@ class Request
      */
     public function getParams()
     {
-        $return = $this->_params;
+        $return = $this->params;
         if (isset($_GET)
             && is_array($_GET)
         ) {
@@ -384,6 +402,7 @@ class Request
         ) {
             $return += $_POST;
         }
+
         return $return;
     }
 
@@ -394,7 +413,7 @@ class Request
      *
      * @param string $key
      * @param mixed $value
-     * @return
+     * @return self
      */
     public function setParam($key, $value)
     {
@@ -415,7 +434,7 @@ class Request
      * Null values will unset the associated key.
      *
      * @param array $array
-     * @return
+     * @return self
      */
     public function setParams(array $array)
     {
@@ -433,11 +452,12 @@ class Request
     /**
      * Unset all user parameters
      *
-     * @return
+     * @return self
      */
     public function clearParams()
     {
         $this->params = array();
+
         return $this;
     }
 
@@ -454,7 +474,7 @@ class Request
     /**
      * Was the request made by POST?
      *
-     * @return boolean
+     * @return bool
      */
     public function isPost()
     {
@@ -468,7 +488,7 @@ class Request
     /**
      * Was the request made by GET?
      *
-     * @return boolean
+     * @return bool
      */
     public function isGet()
     {
@@ -484,7 +504,7 @@ class Request
      *
      * Should work with Prototype/Script.aculo.us, possibly others.
      *
-     * @return boolean
+     * @return bool
      */
     public function isXmlHttpRequest()
     {
@@ -532,7 +552,8 @@ class Request
      */
     public function getScheme()
     {
-        return ($this->getServer('HTTPS') == 'on') ? static::SCHEME_HTTPS : static::SCHEME_HTTP;
+        return ($this->getServer('HTTPS') == 'on')
+            ? static::SCHEME_HTTPS : static::SCHEME_HTTP;
     }
 
     /**
@@ -557,8 +578,9 @@ class Request
 
         if(null === $name) {
             return '';
-        }
-        elseif (($scheme == static::SCHEME_HTTP && $port == 80) || ($scheme == static::SCHEME_HTTPS && $port == 443)) {
+        } elseif (($scheme == static::SCHEME_HTTP && $port == 80)
+            || ($scheme == static::SCHEME_HTTPS && $port == 443)
+        ) {
             return $name;
         } else {
             return $name . ':' . $port;
@@ -568,14 +590,16 @@ class Request
     /**
      * Get the client's IP addres
      *
-     * @param  boolean $checkProxy
+     * @param  bool $checkProxy
      * @return string
      */
     public function getClientIp($checkProxy = true)
     {
         if ($checkProxy && $this->getServer('HTTP_CLIENT_IP') != null) {
             $ip = $this->getServer('HTTP_CLIENT_IP');
-        } else if ($checkProxy && $this->getServer('HTTP_X_FORWARDED_FOR') != null) {
+        } elseif ($checkProxy
+            && $this->getServer('HTTP_X_FORWARDED_FOR') != null
+        ) {
             $ip = $this->getServer('HTTP_X_FORWARDED_FOR');
         } else {
             $ip = $this->getServer('REMOTE_ADDR');

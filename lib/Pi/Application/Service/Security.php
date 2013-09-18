@@ -1,19 +1,11 @@
 <?php
 /**
- * Security service
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @package         Pi\Application
- * @subpackage      Service
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
+ * @package         Service
  */
 
 namespace Pi\Application\Service;
@@ -22,9 +14,17 @@ use Pi;
 use Pi\Security\Security as SecurityUtility;
 use Zend\Escaper\Escaper;
 
+/**
+ * Security handling service
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 class Security extends AbstractService
 {
+    /** {@inheritDoc} */
     protected $fileIdentifier = 'security';
+
+    /** @var array Paths */
     protected $paths;
 
     /**
@@ -72,7 +72,11 @@ class Security extends AbstractService
                 continue;
             }
             // Replace full path with relative path to prevent path disclosure
-            $str  = str_replace(array($v . '/', realpath($v) . '/'), $root . '/', $str);
+            $str  = str_replace(
+                array($v . '/', realpath($v) . '/'),
+                $root . '/',
+                $str
+            );
         }
 
         return $str;
@@ -88,6 +92,7 @@ class Security extends AbstractService
     {
         $pattern = '/\b' . preg_quote(Pi::db()->getTablePrefix()) . '/i';
         $return = preg_replace($pattern, '', $str);
+
         return $return;
     }
 
@@ -99,38 +104,49 @@ class Security extends AbstractService
      */
     public function escape($content = null)
     {
-        $escaper = new Escaper(Pi::config('charset'));
+        $escaper = new Escaper(Pi::service('i18n')->charset);
         if (null === $content) {
             return $escaper;
         }
+
         return $escaper->escapeHtml($content);
     }
 
     /**#@++
      * Check security settings
      *
-     * Policy: Returns TRUE will cause process quite and the current request will be approved; returns FALSE will cause process quit and request will be denied
+     * Policy: Returns TRUE will cause process quite
+     *  and the current request will be approved;
+     *  returns FALSE will cause process quit and request will be denied
      */
 
     /**
      * Check for IPs
+     *
+     * @param array|null $options
+     * @return bool|null
      */
     public function ip($options = null)
     {
         if (!is_array($options) && isset($this->options['ip'])) {
             $options = $this->options['ip'];
         }
+
         return SecurityUtility::ip($options);
     }
 
     /**
      * Check for super globals
+     *
+     * @param array|null $options
+     * @return bool|null
      */
     public function globals($options = null)
     {
         if (!is_array($options) && isset($this->options['globals'])) {
             $options = $this->options['globals'];
         }
+
         return SecurityUtility::globals($options);
     }
 
@@ -139,6 +155,7 @@ class Security extends AbstractService
      *
      * @param string $method The security setting to be checked
      * @param array  $args  arguments for the setting
+     * @return bool|null
      */
     public function __call($method, $args = array())
     {
@@ -146,6 +163,7 @@ class Security extends AbstractService
         if (!is_array($options) && isset($this->options[$method])) {
             $options = $this->options[$method];
         }
+
         return SecurityUtility::$method($options);
     }
     /*#@-*/

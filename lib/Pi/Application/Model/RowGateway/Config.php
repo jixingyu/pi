@@ -1,28 +1,28 @@
 <?php
 /**
- * Pi Config Model Row
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @package         Pi\Application
- * @subpackage      Model
- * @since           3.0
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Pi\Application\Model\RowGateway;
+
 use Pi\Db\RowGateway\RowGateway;
 
+/**
+ * Config row gateway
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 class Config extends RowGateway
 {
+    /**
+     * Columns to be encoded
+     *
+     * @var array
+     */
     protected $encodeColumns = array(
         'edit'  => true,
     );
@@ -35,8 +35,11 @@ class Config extends RowGateway
      */
     protected function encode($data)
     {
-        if (!empty($data['filter'])) {
-            $data['value'] = $this->encodeValueColumn($data['value'], $data['filter']);
+        if (!empty($data['filter']) && isset($data['value'])) {
+            $data['value'] = $this->encodeValueColumn(
+                $data['value'],
+                $data['filter']
+            );
         }
 
         return parent::encode($data);
@@ -51,7 +54,10 @@ class Config extends RowGateway
     public function decode($data)
     {
         if (!empty($data['filter'])) {
-            $data['value'] = $this->decodeValueColumn($data['value'], $data['filter']);
+            $data['value'] = $this->decodeValueColumn(
+                $data['value'],
+                $data['filter']
+            );
         }
         return parent::decode($data);
     }
@@ -59,8 +65,8 @@ class Config extends RowGateway
     /**
      * Decode value column
      *
-     * @param mixed $value
-     * @param string $filter
+     * @param mixed     $value
+     * @param string    $filter
      * @return mixed
      */
     protected function decodeValueColumn($value, $filter)
@@ -90,14 +96,15 @@ class Config extends RowGateway
             default:
                 break;
         }
+
         return $this->filterValue($value, $filter, $filterId, $options);
     }
 
     /**
      * Encode value column
      *
-     * @param mixed $value
-     * @param string $filter
+     * @param mixed     $value
+     * @param string    $filter
      * @return mixed
      */
     protected function encodeValueColumn($value, $filter)
@@ -126,16 +133,17 @@ class Config extends RowGateway
             default:
                 break;
         }
+
         return $this->filterValue($value, $filter, $filterId, $options);
     }
 
     /**
      * Filters a value according to filter, filter_id and options
      *
-     * @param mixed $value
-     * @param mixed $filter
-     * @param int $filterId
-     * @param mixed $options
+     * @param mixed     $value
+     * @param mixed     $filter
+     * @param int       $filterId
+     * @param mixed     $options
      * @return mixed
      */
     protected function filterValue($value, $filter, $filterId, $options)
@@ -150,13 +158,13 @@ class Config extends RowGateway
             if (null === $options) {
                 $value = filter_var($value, $filterId);
             } else {
-                $value = filter_var($value, $filterId, array('options' => $options));
+                $value = filter_var($value, $filterId,
+                    array('options' => $options));
             }
         } elseif (is_callable($filter)) {
             $value = call_user_func($filter, $value);
         }
 
         return $value;
-
     }
 }

@@ -1,24 +1,14 @@
 <?php
 /**
- * Pi module installer action
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Module\System
- * @subpackage      Installer
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Module\System\Installer\Action;
+
 use Pi;
 use Pi\Application\Installer\Action\Install as BasicInstall;
 use Pi\Application\Installer\SqlSchema;
@@ -26,29 +16,126 @@ use Pi\Application\Installer\Theme as ThemeInstaller;
 use Pi\Application\Installer\Module as ModuleInstaller;
 use Zend\EventManager\Event;
 
+/**
+ * Install handler
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 class Install extends BasicInstall
 {
+    /**
+     * Modules to be installed upon system installation
+     *
+     * @var string[]
+     */
     protected $preInstalledModules = array('page', 'widget');
 
+    /**
+     * {@inheritDoc}
+     */
     protected function attachDefaultListeners()
     {
         $events = $this->events;
-        $events->attach('install.pre', array($this, 'createSystemSchema'), 1000);
+        $events->attach(
+            'install.pre',
+            array($this, 'createSystemSchema'),
+            1000
+        );
         $events->attach('install.post', array($this, 'installTheme'), 1);
         $events->attach('install.post', array($this, 'createSystemData'), -10);
-        $events->attach('install.post', array($this, 'installApplication'), -100);
+        $events->attach(
+            'install.post',
+            array($this, 'installApplication'),
+            -100
+        );
+        $events->attach('install.post', array($this, 'dressupBlock'), -200);
         parent::attachDefaultListeners();
+
         return $this;
     }
 
-    public function createSystemSchema(Event $e)
+    /**
+     * Generate system data
+     *
+     * @param Event $e
+     */
+    public function createSystemData(Event $e)
     {
-        $sqlFile = Pi::path('module') . '/system/sql/mysql.system.sql';
-        $status = SqlSchema::query($sqlFile);
+        $module = $e->getParam('module');
+        $message = array();
 
-        return $status;
+        // Add default taxonomy domain
+        Pi::service('taxonomy')->addDomain(array(
+            'name'          => 'taxon',
+            'title'         => __('Default taxonomy'),
+            'description'   =>
+                __('Default global taxonomy domain. Not allowed to change.'),
+        ), false);
+
+
+        // Add system messages
+        $name       = 'admin-welcome';
+        $message    = __('Welcome to Pi powered system.');
+        Pi::user()->data->set(0, $name, $message, $module);
+        /*
+        $row = Pi::model('user_data')->createRow(array(
+            'module'    => $module,
+            'name'      => $name,
+            'time'      => time(),
+            'content'   => $message,
+        ));
+        $row->save();
+        */
+
+        // Add quick links
+        $user   = 1;
+        $name   = 'admin-link';
+        $links  = array(
+            array(
+                'title' => 'Pi Engine Development',
+                'url'   => 'http://www.pialog.org',
+            ),
+            array(
+                'title' => 'Pi Engine Code',
+                'url'   => 'http://code.pialog.org',
+            ),
+            array(
+                'title' => 'Pi Engine Doc',
+                'url'   => 'http://doc.pialog.org',
+            ),
+            array(
+                'title' => 'Pi Engine Twitter',
+                'url'   => 'https://twitter.com/PiEnable',
+            ),
+        );
+        Pi::user()->data->set($user, $name, $links, $module);
+        /*
+        $row = Pi::model('user_data')->createRow(array(
+            'uid'       => $user,
+            'module'    => $module,
+            'name'      => $name,
+            'content'   => $links,
+        ));
+        $row->save();
+        */
+
+        // Add update list
+        $model = Pi::model('update', $module);
+        $data = array(
+            'title'     => __('System installed'),
+            'content'   => __('The system is installed successfully.'),
+            'uri'       => Pi::url('www', true),
+            'time'      => time(),
+        );
+        $model->insert($data);
     }
 
+    /**
+     * Install default theme
+     *
+     * @param Event $e
+     * @return bool
+     */
     public function installTheme(Event $e)
     {
         $themeInstaller = new ThemeInstaller;
@@ -66,6 +153,26 @@ class Install extends BasicInstall
         return $status;
     }
 
+    /**
+     * Create system module data
+     *
+     * @param Event $e
+     * @return bool
+     */
+    public function createSystemSchema(Event $e)
+    {
+        $sqlFile = Pi::path('module') . '/system/sql/mysql.system.sql';
+        $status = SqlSchema::query($sqlFile);
+
+        return $status;
+    }
+
+    /**
+     * Install modules automatically
+     *
+     * @param Event $e
+     * @return bool
+     */
     public function installApplication(Event $e)
     {
         $apps = $this->preInstalledModules;
@@ -78,101 +185,84 @@ class Install extends BasicInstall
         return true;
     }
 
-    public function createSystemData(Event $e)
+    /**
+     * Install and dress up pages with blocks
+     *
+     * @param Event $e
+     */
+    public function dressupBlock(Event $e)
     {
-        $module = $e->getParam('module');
-        $message = array();
-
-        // Add default taxonomy domain
-        Pi::service('taxonomy')->addDomain(array(
-            'name'          => 'taxon',
-            'title'         => __('Default taxonomy'),
-            'description'   => __('Default global taxonomy domain. Not allowed to change.'),
-        ), false);
-
-
         // Find homepage
-        $model = Pi::model('page');
-        $pages = $model->select(array(
+        $modelPage = Pi::model('page');
+        $homePage = $modelPage->select(array(
             'section'       => 'front',
             'block'         => 1,
             'module'        => 'system',
             'controller'    => 'index',
             'action'        => 'index',
-        ))->toArray();
-        // Add user login block to homepage
-        $model = Pi::model('block');
-        $blockList = $model->select(array(
-            'module'    => $module,
+        ))->current()->toArray();
+
+        // Add user login block to homepage sidebar
+        $modelBlock = Pi::model('block');
+        $blockList = $modelBlock->select(array(
+            'module'    => 'system',
             'name'      => array('system-user', 'system-login')
         ));
         //$blocks = array();
         $i = 0;
-        $model = Pi::model('page_block');
+        $modelLink = Pi::model('page_block');
         foreach ($blockList as $block) {
             //$blocks[$block['name']] = $block['id'];
-            foreach ($pages as $page) {
+            //foreach ($pages as $page) {
                 $data = array(
-                    'page'      => $page['id'],
+                    'page'      => $homePage['id'],
                     'block'     => $block['id'],
-                    'zone'      => 0,
+                    'zone'      => 8,
                     'order'     => ++$i
                 );
-                $model->insert($data);
-            }
+                $modelLink->insert($data);
+            //}
         }
 
-        // Add system messages
-        $type       = 'admin-welcome';
-        $message    = array(
-            'content'   => __('Welcome to Pi powered system.'),
-            'time'      => time(),
-        );
-        $row = Pi::model('user_repo')->createRow(array(
-            'module'    => $module,
-            'type'      => $type,
-            'content'   => $message,
-        ));
-        $row->save();
+        // Add spotlight as top block to homepage
+        $blockList = array();
 
-        // Add quick links
-        $user   = 1;
-        $type   = 'admin-link';
-        $links  = array(
-            array(
-                'title' => 'Pi Engine Development',
-                'url'   => 'http://www.xoopsengine.org',
-            ),
-            array(
-                'title' => 'Pi Engine Code',
-                'url'   => 'http://github.com/pi-engine/pi',
-            ),
-            array(
-                'title' => 'Pi Engine Doc',
-                'url'   => 'https://github.com/pi-engine/pi/wiki',
-            ),
-            array(
-                'title' => 'Pi Engine Twitter',
-                'url'   => 'https://twitter.com/XoopsProject',
-            ),
-        );
+        if (in_array('widget', $this->preInstalledModules)) {
+            // Add spotlight and feature blocks to homepage
+            $blockList[] = $modelBlock->select(array(
+                'module'    => 'widget',
+                'name'      => 'widget-highlights',
+            ))->current()->toArray();
+        }
 
-        $row = Pi::model('user_repo')->createRow(array(
-            'user'      => $user,
-            'module'    => $module,
-            'type'      => $type,
-            'content'   => $links,
-        ));
-        $row->save();
+        $i = 0;
+        foreach ($blockList as $block) {
+            $data = array(
+                'page'      => $homePage['id'],
+                'block'     => $block['id'],
+                'zone'      => 0,
+                'order'     => ++$i
+            );
+            $modelLink->insert($data);
+        }
 
-        // Add update list
-        $model = Pi::model('update', $module);
-        $data = array(
-            'title'     => __('System installed'),
-            'content'   => __('The system is installed successfully.'),
-            'uri'       => Pi::url('www', true),
-            'time'      => time(),
-        );
-        $model->insert($data);
+
+        // Add feature as center block to homepage
+        $blockList = array();
+        $blockList[] = $modelBlock->select(array(
+            'module'    => 'system',
+            'name'      => 'system-pi'
+        ))->current()->toArray();
+
+        $i = 0;
+        foreach ($blockList as $block) {
+            $data = array(
+                'page'      => $homePage['id'],
+                'block'     => $block['id'],
+                'zone'      => 2,
+                'order'     => ++$i
+            );
+            $modelLink->insert($data);
+        }
     }
 }

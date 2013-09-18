@@ -1,29 +1,21 @@
 <?php
 /**
- * System module route config
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Module\System
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 /**
- * Routes
- * @see lib\Pi\Mvc\Router\Route
+ * Route specs
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
  */
 return array(
     // default route
     'default'   => array(
+        'name'      => 'default',
         'section'   => 'front',
         'priority'  => -999,
 
@@ -42,6 +34,7 @@ return array(
 
     // Home route
     'home'  => array(
+        'name'      => 'home',
         'type'      => 'Home',
         'priority'  => 10000,
 
@@ -54,6 +47,7 @@ return array(
 
     // admin route
     'admin' => array(
+        'name'      => 'admin',
         // section, default as 'front'
         'section'   => 'admin',
         'priority'  => 100,
@@ -64,8 +58,21 @@ return array(
         ),
     ),
 
+    // API route
+    'api' => array(
+        'name'      => 'api',
+        'section'   => 'api',
+        'priority'  => 100,
+
+        'type'      => 'Api',
+        'options'   => array(
+            'route'     => '/api',
+        ),
+    ),
+
     // feed route
     'feed' => array(
+        'name'      => 'feed',
         'section'   => 'feed',
         'priority'  => 100,
 
@@ -75,14 +82,19 @@ return array(
         ),
     ),
 
-    // User route
-    'user'  => array(
-        'type'      => 'User',
+    // System user route
+    'sysuser'   => array(
+        'name'      => 'sysuser',
+        'type'      => 'Module\System\Route\User',
         'priority'  => 5,
+        'options'   => array(
+            'route'    => '/system/user',
+        ),
     ),
 
     // Transition page jump route
     'jump' => array(
+        'name'      => 'jump',
         'priority'  => 5,
 
         'type'      => 'Literal',

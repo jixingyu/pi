@@ -1,70 +1,98 @@
 <?php
 /**
- * jQuery file helper
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Pi\View
- * @subpackage      Helper
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
+ * @package         View
  */
 
 namespace Pi\View\Helper;
 
 use Pi;
-use Zend\View\Helper\AbstractHelper;
 
 /**
  * Helper for loading jQuery files
  *
- * Usage inside a phtml template:
- * <code>
+ * Usage inside a phtml template
+ *
+ * ```
+ *  // Load basic jQuery file
  *  $this->jQuery();
- *  $this->jQuery('extension.js');
- *  $this->jQuery(array('ext1.js', 'ext2.js'));
- * </code>
+ *
+ *  // Load specific file
+ *  $this->jQuery('some.js');
+ *
+ *  // Load specific file with attributes
+ *  $this->jQuery('some.js',
+ *      array('conditional' => '...', 'position' => 'prepend'));
+ *
+ *  // Load a list of files
+ *  $this->jQuery(array(
+ *      'some.css',
+ *      'some.js',
+ *  ));
+ *
+ *  // Load a list of files with corresponding attributes
+ *  $this->jQuery(array(
+ *      'some.css' => array('media' => '...', 'conditional' => '...'),
+ *      'some.js',
+ *  ));
+ * ```
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
  */
-class JQuery extends AbstractHelper
+class JQuery extends AssetCanonize
 {
+    /** @var string Root dir of jQuery */
     const DIR_ROOT = 'vendor/jquery';
+
+    /** @var bool jQuery basic file is loaded */
     protected static $rootLoaded;
 
     /**
      * Load jQuery files
      *
-     * @param   null|string|array $file
-     * @return  void
+     * @param   null|string|array $files
+     * @param   array $attributes
+     * @return  self
      */
-    public function __invoke($options = null)
+    public function __invoke($files = null, $attributes = array())
     {
-        //$root = Pi::url('static') . '/' . static::DIR_ROOT;
-        //$rootPath = Pi::path('static') . '/' . static::DIR_ROOT;
-        $options = (array) $options;
-        if (!static::$rootLoaded) {
-            if (!in_array('jquery.min.js', $options)) {
-                array_unshift($options, 'jquery.min.js');
+        $files = $this->canonize($files, $attributes);
+        if (empty(static::$rootLoaded)) {
+            if (!isset($files['jquery.min.js'])) {
+                $files = array('jquery.min.js' =>
+                        $this->canonizeFile('jquery.min.js'))
+                    + $files;
             }
             static::$rootLoaded = true;
         }
-        foreach ($options as $file) {
-            $fileExtension = substr($file, strrpos( $file, '.' ) + 1);
+
+        foreach ($files as $file => $attrs) {
             $file = static::DIR_ROOT . '/' . $file;
             $url = Pi::service('asset')->getStaticUrl($file, $file);
-            if ($fileExtension == 'css') {
-                $this->view->headLink()->appendStylesheet($url);
+            $position = isset($file['position'])
+                ? $file['position'] : 'append';
+            if ('css' == $attrs['ext']) {
+                $attrs['href'] = $url;
+                if ('prepend' == $position) {
+                    $this->view->headLink()->prependStylesheet($attrs);
+                } else {
+                    $this->view->headLink()->appendStylesheet($attrs);
+                }
             } else {
-                $this->view->headScript()->appendFile($url);
+                if ('prepend' == $position) {
+                    $this->view->headScript()
+                        ->prependFile($url, 'text/javascript', $attrs);
+                } else {
+                    $this->view->headScript()
+                        ->appendFile($url, 'text/javascript', $attrs);
+                }
             }
         }
+
         return $this;
     }
 }

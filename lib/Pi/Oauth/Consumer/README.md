@@ -1,1 +1,1 @@
-For Oauth consumer
+For OAuth consumer

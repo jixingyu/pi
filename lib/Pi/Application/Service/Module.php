@@ -1,32 +1,34 @@
 <?php
 /**
- * Pi Engine module service
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @package         Pi\Application
- * @subpackage      Service
- * @since           3.0
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
+ * @package         Service
  */
 
 namespace Pi\Application\Service;
+
 use Pi;
 
+/**
+ * Module handling service
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 class Module extends AbstractService
 {
+    /** @var string File of installed module meta data */
     protected $fileMeta = 'module.meta.php';
+
+    /** {@inheritDoc} */
     protected $fileIdentifier = 'module';
+
+    /** @var string Current module */
     protected $currentModule;
 
+    /** @var array Container of module meta */
     protected $container = array(
         // Meta of modules: directory, active, path
         'meta'  => array(),
@@ -39,7 +41,8 @@ class Module extends AbstractService
     /**
      * Constructor
      *
-     * @param array     $options    Parameters to send to the service during instanciation
+     * @param array $options
+     *      Parameters to send to the service during instanciation
      */
     public function __construct($options = array())
     {
@@ -50,12 +53,13 @@ class Module extends AbstractService
     /**
      * Set current active module
      *
-     * @param sring $module
-     * @return Module
+     * @param string $module
+     * @return self
      */
     public function setModule($module)
     {
         $this->currentModule = $module;
+
         return $this;
     }
 
@@ -102,20 +106,22 @@ class Module extends AbstractService
         } elseif (!is_writable($configFile)) {
             @chmod($configFile, intval('0777', 8));
         }
-        $content = '<?php' . PHP_EOL . 'return ' . var_export($meta, true) . ';' . PHP_EOL;
+        $content = '<?php' . PHP_EOL
+                 . 'return ' . var_export($meta, true) . ';' . PHP_EOL;
         file_put_contents($configFile, $content);
         @chmod($configFile, intval('0444', 8));
         clearstatcache();
 
         $this->init(true);
+
         return $meta;
     }
 
     /**
      * Initialize the service: load meta data from meta file
      *
-     * @param bool $force
-     * @return boolean
+     * @param bool $force Force to re-generate module meta data
+     * @return bool
      */
     public function init($force = false)
     {
@@ -128,6 +134,7 @@ class Module extends AbstractService
             */
             $this->container['meta'] = $list;
         }
+
         return true;
     }
 
@@ -135,7 +142,7 @@ class Module extends AbstractService
      * Get module meta data
      *
      * @param string $module
-     * @return array|boolean
+     * @return array|bool
      */
     public function meta($module = null)
     {
@@ -159,7 +166,8 @@ class Module extends AbstractService
      */
     public function isActive($module)
     {
-        return empty($this->container['meta'][$module]['active']) ? false : true;
+        return empty($this->container['meta'][$module]['active'])
+            ? false : true;
     }
 
     /**
@@ -173,9 +181,12 @@ class Module extends AbstractService
     {
         $module = $module ?: $this->currentModule;
         if (!isset($this->container['config'][$module])) {
-            $this->container['config'][$module] = Pi::service('registry')->config->read($module);
+            $this->container['config'][$module] =
+                Pi::registry('config')->read($module);
         }
-        return $key ? $this->container['config'][$module][$key] : $this->container['config'][$module];
+        return $key
+            ? $this->container['config'][$module][$key]
+            : $this->container['config'][$module];
     }
 
     /**
@@ -187,10 +198,34 @@ class Module extends AbstractService
      */
     public function loadMeta($module, $type = null)
     {
-        Pi::service('i18n')->translator->load(sprintf('module/%s:meta', $module));
+        Pi::service('i18n')->translator->load(sprintf(
+            'module/%s:meta',
+            $module
+        ));
         $configFile = sprintf('%s/config/module.php', $this->path($module));
         $config = include $configFile;
-        return $type ? $config[$type] : $config;
+
+        // For backward compat
+        if (isset($config['maintenance'])) {
+            if (isset($config['maintenance']['resource'])) {
+                $config['resource'] = $config['maintenance']['resource'];
+            }
+            unset($config['maintenance']);
+        }
+
+        if ($type) {
+            if (isset($config[$type])) {
+                $result = $config[$type];
+            } elseif (isset($config['resource'][$type])) {
+                $result = $config['resource'][$type];
+            } else {
+                $result = array();
+            }
+        } else {
+            $result = $config;
+        }
+
+        return $result;
     }
 
     /**
@@ -205,6 +240,7 @@ class Module extends AbstractService
             $module = $this->container['meta'][$module]['directory'];
         }
         $path = Pi::path('module') . '/' . $module;
+
         return $path;
     }
 
@@ -212,10 +248,12 @@ class Module extends AbstractService
      * Gets a module's physical directory name.
      *
      * Usually a module's directory is equal to its folder name.
-     * However, when module clone happends, which is implemented in Pi Engine or X3,
-     * a module's directory is its parent or root module's folder name while folder or 'dirname' by tradition is its key name.
+     * However, when module clone happends, which is implemented in Pi Engine
+     * a module's directory is its parent or root module's folder name
+     * while folder or `dirname` by tradition is its key name.
      *
-     * @param string $module a module's dirname or key name
+     * @param string $module Module's dirname or identifier name
+     * @return string
      */
     public function directory($module = null)
     {
@@ -226,15 +264,22 @@ class Module extends AbstractService
         } else {
             $directory = $module;
         }
+
         return $directory;
     }
 
     /**
-     * Fetch content of an item from a type of moldule content by calling Module\ModuleName\Service::content()
+     * Fetch content of an item from a type of moldule content by calling
+     * `Module\<ModuleName>\Service::content()`
      *
-     * @param array $variables array of variables to be returned: title, summary, uid, user, etc.
-     * @param array $conditions associative array of conditions: item - item ID or ID list, module, type - optional, user, Where
-     * @return  array   associative array of returned content, or list of associative arry if $item is an array
+     * @param array $variables  array of variables to be returned:
+     *                          title, summary, uid, user, etc.
+     * @param array $conditions associative array of conditions:
+     *                          item - item ID or ID list, module, type - optional, user, Where
+     *
+     * @throws \Exception
+     * @return  array Associative array of returned content,
+     *      or list of associative array if $item is an array
      */
     public function content(array $variables, array $conditions)
     {
@@ -242,10 +287,11 @@ class Module extends AbstractService
             throw new \Exception('module is required.');
         }
         $directory = $this->directory($conditions['module']);
-        $class = sprintf('Module\\%s\\Service', ucfirst($directory));
+        $class = sprintf('Module\\%s\Service', ucfirst($directory));
         if (!class_exists($class)) {
             return false;
         }
+
         return $class::content($variables, $conditions);
     }
 }

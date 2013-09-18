@@ -1,20 +1,10 @@
 <?php
 /**
- * Pi module block renderer
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Module\System
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Module\System;
@@ -22,8 +12,18 @@ namespace Module\System;
 use Pi;
 use Module\System\Form\LoginForm;
 
+/**
+ * Block renderer
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 class Block
 {
+    /**
+     * Site infomation block
+     *
+     * @return array
+     */
     public static function site()
     {
         return array(
@@ -35,37 +35,78 @@ class Block
         );
     }
 
+    /**
+     * User link block
+     *
+     * @return bool|array
+     */
     public static function user()
     {
-        if (Pi::registry('user')->isGuest()) {
+        if (!Pi::service('user')->hasIdentity()) {
             return false;
         }
 
         return array(
-            'identity'  => Pi::registry('user')->identity,
-            'id'        => Pi::registry('user')->id,
+            'identity'  => Pi::service('user')->getUser()->identity,
+            'id'        => Pi::service('user')->getUser()->id,
         );
     }
 
-    public static function userbar()
+    /**
+     * User bar
+     *
+     * @param array $options
+     * @return array
+     */
+    public static function userbar($options = array())
     {
         return array(
-            'identity'  => Pi::registry('user')->identity,
-            'id'        => Pi::registry('user')->id,
-            'name'      => Pi::registry('user')->name,
+            'identity'  => Pi::service('user')->getUser()->identity,
+            'id'        => Pi::service('user')->getUser()->id,
+            'name'      => Pi::service('user')->getUser()->name,
+            'type'      => isset($options['type']) ? $options['type'] : '',
         );
     }
 
+    /**
+     * User login form block
+     *
+     * @return bool|array
+     */
     public static function login()
     {
-        if (!Pi::registry('user')->isGuest()) {
+        if (Pi::service('user')->hasIdentity()) {
             return false;
         }
         $form = new LoginForm('login');
-        $form->setAttribute('action', Pi::engine()->application()->getRouter()->assemble(array('module' => 'system', 'controller' => 'login', 'action' => 'process'), array('name' => 'user')));
+        $form->setAttribute(
+            'action',
+            Pi::service('url')->assemble(
+                'sysuser',
+                array(
+                    'module'        => 'system',
+                    'controller'    => 'login',
+                    'action'        => 'process',
+                )
+            )
+        );
 
         return array(
             'form'  => $form,
+        );
+    }
+
+    /**
+     * Get Pi Engine feature API
+     *
+     * @return string
+     */
+    public static function pi()
+    {
+        $featureApi =
+            'https://raw.github.com/pi-engine/pi/master/doc/README.html';
+        return array(
+            'api'   => $featureApi,
         );
     }
 }

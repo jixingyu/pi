@@ -1,24 +1,14 @@
 <?PHP
 /**
- * Pi Nested Table Gateway
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @package         Pi\Db
- * @subpackage      Table
- * @since           3.0
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Pi\Db\Table;
+
 use Pi\Db\RowGateway\Node;
 use Pi\Db\Sql\Where;
 use Zend\Db\ResultSet\Row;
@@ -26,16 +16,21 @@ use Zend\Db\Sql\Expression;
 use Zend\Db\Sql\Select;
 
 /**
- * Pi Nested Set Tree Model
+ * Pi Nested Table Gateway
  *
  * Managing Hierarchical Data with Nested Set Model
+ *
  * @see http://dev.mysql.com/tech-resources/articles/hierarchical-data.html
+ * @see http://web.archive.org/web/20110606032941/http://dev.mysql.com/tech-resources/articles/hierarchical-data.html
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
  */
 abstract class AbstractNest extends AbstractTableGateway
 {
     /**
      * Predefined columns
-     *
+     *  - left: left value
+     *  - right: right value
+     *  - depth: node depth
      * @var array
      */
     protected $column = array(
@@ -47,9 +42,9 @@ abstract class AbstractNest extends AbstractTableGateway
 
     /**
      * Valid positions
-     * @var array
+     * @var string[]
      */
-    protected $postion = array('firstOf', 'lastOf', 'nextTo', 'previousTo');
+    protected $position = array('firstOf', 'lastOf', 'nextTo', 'previousTo');
 
     /**
      * Class for row gateway
@@ -58,8 +53,7 @@ abstract class AbstractNest extends AbstractTableGateway
     protected $rowClass = 'Pi\Db\RowGateway\Node';
 
     /**
-     * Setup model
-     * @param array $options
+     * {@inheritDoc}
      */
     public function setup($options = array())
     {
@@ -72,6 +66,9 @@ abstract class AbstractNest extends AbstractTableGateway
         parent::setup($options);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function initialize()
     {
         if ($this->isInitialized == true) {
@@ -85,11 +82,23 @@ abstract class AbstractNest extends AbstractTableGateway
         }
     }
 
+    /**
+     * Get column name
+     *
+     * @param string $column
+     * @return string|null
+     */
     public function column($column)
     {
         return isset($this->column[$column]) ? $this->column[$column] : null;
     }
 
+    /**
+     * Get quoted column name
+     *
+     * @param string $column
+     * @return string|null
+     */
     public function quoteColumn($column)
     {
         return $this->quoteIdentifier($this->column[$column]);
@@ -98,7 +107,6 @@ abstract class AbstractNest extends AbstractTableGateway
     /**#@+
      * Node operations
      */
-
     /**
      * Normalizes node value
      *
@@ -112,14 +120,16 @@ abstract class AbstractNest extends AbstractTableGateway
         } else {
             $result = $this->find($node);
         }
+
         return $result;
     }
 
     /**
      * Get extreme value of left or right
      *
-     * @param   string  $side    node side, default as 'right'
-     * @param   mixed   $objective  target node ID or Node
+     * @param string    $side       Node side, default as 'right'
+     * @param mixed     $objective  Target node ID or Node
+     * @return int
      */
     public function getSideExtreme($side = 'right', $objective = null)
     {
@@ -138,7 +148,11 @@ abstract class AbstractNest extends AbstractTableGateway
             $column = 'right';
             $operation = 'MAX';
         }
-        $select = $this->select()->columns(array('extreme' => new Expression(sprintf('%s(%s)', $operation, $this->quoteColumn($column)))));
+        $select = $this->select()->columns(array(
+            'extreme' => new Expression(
+                sprintf('%s(%s)', $operation, $this->quoteColumn($column))
+            )
+        ));
         $row = $this->selectWith($select)->current();
         $result = $row ? $row->extreme : 0;
 
@@ -148,14 +162,15 @@ abstract class AbstractNest extends AbstractTableGateway
     /**
      * Get node param of a single pseudo node to be inserted
      *
-     * @param   mixed   $objective  target node ID or Node
-     * @param   string  $position   position to the target node, potential value: firstOf, lastOf, nextTo, previousTo
-     * @return  array   postion     paramters: left, right
+     * @param mixed   $objective  Target node ID or Node
+     * @param string  $position   Position to the target node,
+     *      potential value: firstOf, lastOf, nextTo, previousTo
+     * @return  array|false   Postion paramters: left, right
      */
     protected function getPosition($objective = null, $position = 'lastOf')
     {
         // Escape is position is invalid
-        if (!in_array($position, $this->postion)) {
+        if (!in_array($position, $this->position)) {
             return false;
         }
 
@@ -203,9 +218,10 @@ abstract class AbstractNest extends AbstractTableGateway
     /**
      * Shift a list of nodes
      *
-     * @param    int        $left_start     starting value of node_left
-     * @param    int        $increment      count of position increment
-     * @param    int        $right_end      end value of right_end, if gt 0
+     * @param int $left_start   Starting value of node_left
+     * @param int $increment    Count of position increment
+     * @param int $right_end    End value of right_end, if gt 0
+     * @return bool
      */
     protected function shift($left_start, $increment, $right_end = 0)
     {
@@ -222,25 +238,35 @@ abstract class AbstractNest extends AbstractTableGateway
             $column = $this->quoteColumn($col);
             $where = sprintf('%s >= %s', $column, $left_start);
             if ($right_end) {
-                $where = sprintf('%s AND %s <= %s', $where, $column, $right_end);
+                $where = sprintf('%s AND %s <= %s',
+                    $where, $column, $right_end);
             }
             $order = sprintf('%s %s', $column, $direction);
-            $sql = sprintf('UPDATE %s SET %s = %s %s %d WHERE %s ORDER BY %s', $this->quoteIdentifier($this->table), $column, $column, $operator, $value, $where, $order);
+            $sql = sprintf(
+                'UPDATE %s SET %s = %s %s %d WHERE %s ORDER BY %s',
+                $this->quoteIdentifier($this->table),
+                $column, $column, $operator, $value, $where, $order
+            );
             $this->adapter->query($sql, 'execute');
         }
+
         return true;
     }
 
     /**
      * Strip empty positions starting from a specific position
      *
-     * @param int $start starting value of node left or right
+     * @param int   $start          Starting value of node left or right
+     * @param bool  $leftVerified   If left side is already verified
+     * @return void
      */
     public function trim($start = 1, $leftVerified = false)
     {
         // Fetch the first node in valid range
-        $select = $this->select()->where(array($this->quoteColumn('left') . ' >= ?' => $start))
-            ->where(array($this->quoteColumn('right') . ' >= ?' => $start), 'OR')
+        $select = $this->select()
+            ->where(array($this->quoteColumn('left') . ' >= ?' => $start))
+            ->where(array($this->quoteColumn('right') . ' >= ?' => $start),
+                    'OR')
             ->order($this->column['left'] . ' ASC');
         $rowRight = $this->selectWith($select)->current();
         if (!$rowRight) {
@@ -252,14 +278,22 @@ abstract class AbstractNest extends AbstractTableGateway
             $start = $rowRight->left;
             if ($start > 1) {
                 // Find the first previous node
-                $select = $this->select()->where(array($this->quoteColumn('left') . ' < ?' => $start))
-                    ->where(array($this->quoteColumn('right') . ' < ?' => $start), 'OR')
+                $select = $this->select()
+                    ->where(
+                        array($this->quoteColumn('left') . ' < ?' => $start)
+                    )
+                    ->where(
+                        array($this->quoteColumn('right') . ' < ?' => $start),
+                        'OR'
+                    )
                     ->order($this->column['right'] . ' DESC');
                 $rowLeft = $this->selectWith($select)->current();
                 if (!$rowLeft) {
                     $start = 1;
                 } else {
-                    $start = (($rowLeft->right < $start) ? $rowLeft->right : $rowLeft->left) + 1;
+                    $start = (($rowLeft->right < $start)
+                            ? $rowLeft->right : $rowLeft->left)
+                        + 1;
                 }
             }
             // Shift if empty positions detected
@@ -271,11 +305,16 @@ abstract class AbstractNest extends AbstractTableGateway
             }
         }
         if ($rowRight->depth == 0) {
-            // Calulate children number v.s. right/left value to determine if empty positions exist
-            $select = $this->select()->columns(array('count' => new Expression('COUNT(*)')))
-                ->where(array($this->quoteColumn('left') . ' >= ?' => $rowRight->left));
+            // Calulate children number v.s. right/left value
+            // to determine if empty positions exist
+            $select = $this->select()
+                ->columns(array('count' => new Expression('COUNT(*)')))
+                ->where(array(
+                    $this->quoteColumn('left') . ' >= ?' => $rowRight->left
+                ));
             $row = $this->selectWith($select)->current();
-            // children number equal to right/left value gap, no empty positions detected, exit
+            // children number equal to right/left value gap,
+            // no empty positions detected, exit
             $rightExtreme = $this->getSideExtreme();
             if ($row->count * 2 == $rightExtreme - $rowRight->left + 1) {
                 return true;
@@ -288,17 +327,27 @@ abstract class AbstractNest extends AbstractTableGateway
         }
 
         $moveOn = true;
-        // Calulate children number v.s. right/left value to determine if empty positions exist
-        $select = $this->select()->columns(array('count' => new Expression('COUNT(*)')))
-            ->where(array($this->quoteColumn('right') . ' < ?' => $rowRight->right))
-            ->where(array($this->quoteColumn('left') . ' > ?' => $rowRight->left));
+        // Calulate children number v.s. right/left value
+        // to determine if empty positions exist
+        $select = $this->select()
+            ->columns(array('count' => new Expression('COUNT(*)')))
+            ->where(array(
+                $this->quoteColumn('right') . ' < ?' => $rowRight->right
+            ))
+            ->where(array(
+                $this->quoteColumn('left') . ' > ?' => $rowRight->left
+            ));
         $row = $this->selectWith($select)->current();
-        // children number smaller than right/left value gap, empty positions detected, move on to first child
+        // children number smaller than right/left value gap,
+        // empty positions detected, move on to first child
         if ($row->count * 2 < $rowRight->right - $rowRight->left - 1) {
             $moveOn = false;
             // Find last child in order to remove empty positions on right side
-            $select = $this->select()->where(array($this->quoteColumn('right') . ' < ?' => $rowRight->right))
-                                    ->order($this->column['right'] . ' DESC');
+            $select = $this->select()
+                ->where(array(
+                    $this->quoteColumn('right') . ' < ?' => $rowRight->right
+                ))
+                ->order($this->column['right'] . ' DESC');
             $rowChild = $this->selectWith($select)->current();
             if (!$rowChild) {
                 $end = $rowRight->left + 1;
@@ -310,7 +359,9 @@ abstract class AbstractNest extends AbstractTableGateway
             if ($shift) {
                 $this->shift($end, $shift);
                 $rowRight->right += $shift;
-                if ($row->count * 2 == $rowRight->right - $rowRight->left - 1) {
+                if (
+                    $row->count * 2 == $rowRight->right - $rowRight->left - 1
+                ) {
                     $moveOn = true;
                 }
             }
@@ -328,38 +379,43 @@ abstract class AbstractNest extends AbstractTableGateway
     /**
      * Reconciles a nest set
      *
-     * Bugfix by Lin Zongshu
+     * Widht bugfix by Lin Zongshu
      *
-     * @todo
-     * @param type $start
-     * @param type $end
+     * @param int       $start
+     * @param int|null  $end
+     * @return void
      */
     public function reconcile($start = 1, $end = null)
     {
         $primary = $this->quoteIdentifier($this->primaryKeyColumn);
         $leftCol = $this->quoteColumn('left');
         $rightCol = $this->quoteColumn('right');
-        //$depthCol = $this->quoteColumn('depth');
 
-        $node = /*'node'*/$this->table;
+        $node = $this->table;
         $parent = 'parent';
-        //$nodeTable = $this->quoteIdentifier($node);
         $parentTable = $this->quoteIdentifier($parent);
         $select = new Select;
         $select->columns(array(
-                    /*$node . '.' . */$this->primaryKeyColumn,
-                    /*$node . '.' . */$this->column('depth'),
-                    'depth_cal' => new Expression(sprintf('(COUNT(%s.%s) - 1)', $parent, $primary)), //'(COUNT({$parentTable}.{$primary}) - 1)')
+                    $this->primaryKeyColumn,
+                    $this->column('depth'),
+                    'depth_cal' => new Expression(
+                        sprintf('(COUNT(%s.%s) - 1)', $parent, $primary)
+                    ),
                 ))
-            ->from($node/*array($node => $this->getTable())*/)
+            ->from($node)
             ->join(
                 array($parent => $this->table),
-                //sprintf('(%s.%s BETWEEN %s.%s AND %s.%s)', $nodeTable, $leftCol, $parentTable, $leftCol, $parentTable, $rightCol)
-                sprintf('%s.%s BETWEEN %s.%s AND %s.%s', $parent, $this->column('left'), $node, $this->column('left'), $node, $this->column('right'))
-                //'({$nodeTable}.{$leftCol} BETWEEN {$parentTable}.{$leftCol} AND {$parentTable}.{$rightCol})'
+                sprintf(
+                    '%s.%s BETWEEN %s.%s AND %s.%s',
+                    $parent,
+                    $this->column('left'),
+                    $node,
+                    $this->column('left'),
+                    $node,
+                    $this->column('right')
+                )
               )
             ->group($parent . '.' . $this->primaryKeyColumn);
-            //->having($nodeTable . '.' . $depthCol . ' <> ' . $this->quoteIdentifier('depth_cal'));
         $where = array();
         if ($start > 1) {
             $where[$parentTable . '.' . $leftCol . ' >= ?'] = $start;
@@ -370,7 +426,10 @@ abstract class AbstractNest extends AbstractTableGateway
         $select->where($where);
         $rowset = $this->selectWith($select);
         foreach ($rowset as $row) {
-            $this->update(array($this->column('depth') => $row->depth_cal), array($this->primaryKeyColumn => $row->id));
+            $this->update(
+                array($this->column('depth') => $row->depth_cal),
+                array($this->primaryKeyColumn => $row->id)
+            );
         }
     }
 
@@ -379,8 +438,9 @@ abstract class AbstractNest extends AbstractTableGateway
      *
      * @param   array   $data       node data
      * @param   mixed   $objective  target node ID or Node
-     * @param   string  $position   position to the target node, potential value: firstOf, lastOf, nextTo, previousTo
-     * @return  mixed   The primary key of the row inserted.
+     * @param   string  $position   position to the target node,
+     *      potential value: firstOf, lastOf, nextTo, previousTo
+     * @return  int   The primary key of the row inserted.
      */
     public function add($data, $objective = null, $position = 'lastOf')
     {
@@ -403,6 +463,7 @@ abstract class AbstractNest extends AbstractTableGateway
             $row->depth = $this->getDepth($row);
         }
         $row->save();
+
         return $row->id;
         //return $this->insert($data);
     }
@@ -412,7 +473,7 @@ abstract class AbstractNest extends AbstractTableGateway
      *
      * @param   mixed   $objective  target node ID or Node
      * @param   bool    $recursive  Whether to delete all children nodes
-     * @param   int     affected rows
+     * @return int|false Affected rows
      */
     public function remove($objective, $recursive = false)
     {
@@ -447,7 +508,9 @@ abstract class AbstractNest extends AbstractTableGateway
         // Keep children
         } else {
             $data = array(
-                $this->column('depth') => new Expression($this->quoteColumn('depth') . ' - 1')
+                $this->column('depth') => new Expression(
+                    $this->quoteColumn('depth') . ' - 1'
+                )
             );
             $where = array(
                 $this->quoteColumn('left') . ' > ?' => $left,
@@ -471,7 +534,9 @@ abstract class AbstractNest extends AbstractTableGateway
      *
      * @param   mixed   $objective  target node ID or Node
      * @param   integer $reference  reference node ID or Node
-     * @param   string  $position   position to the destination node, potential value: firstOf, lastOf, nextTo, previousTo
+     * @param   string  $position   position to the destination node,
+     *      potential value: firstOf, lastOf, nextTo, previousTo
+     * @return bool
      */
     public function move($objective, $reference = null, $position = 'lastOf')
     {
@@ -494,7 +559,8 @@ abstract class AbstractNest extends AbstractTableGateway
 
         $rightExtreme = $this->getSideExtreme();
         $incrementPlaceholder = $rightExtreme - $source['left'] + 1;
-        if (!$this->shift($source['left'], $incrementPlaceholder, $source['right'])) {
+        if (!$this->shift($source['left'],
+            $incrementPlaceholder, $source['right'])) {
             return false;
         }
 
@@ -516,12 +582,14 @@ abstract class AbstractNest extends AbstractTableGateway
             );
         }
         if ($dest['left'] > $source['left']) {
-            if (!$this->shift($source['right'] + 1, -1 * $increment, $dest['left'] - 1)) {
+            if (!$this->shift($source['right'] + 1,
+                -1 * $increment, $dest['left'] - 1)) {
                 return false;
             }
             $dest['left'] += -1 * $increment;
         } else {
-            if (!$this->shift($dest['left'], $increment, $source['left'] - 1)) {
+            if (!$this->shift($dest['left'],
+                $increment, $source['left'] - 1)) {
                 return false;
             }
         }
@@ -530,14 +598,19 @@ abstract class AbstractNest extends AbstractTableGateway
         if (!$this->shift($rightExtreme + 1, $incrementPlaceholder)) {
             return false;
         }
-        $this->reconcile($dest['left'], $dest['left'] + $row->right - $row->left);
+        $this->reconcile(
+            $dest['left'],
+            $dest['left'] + $row->right - $row->left
+        );
+
         return true;
     }
 
     /**
      * Calculate depth for a node
      *
-     * @param   mixed   $objective  target node ID or Node
+     * @param int|Node $objective Target node ID or Node
+     * @return int|false
      */
     public function getDepth($objective)
     {
@@ -545,13 +618,19 @@ abstract class AbstractNest extends AbstractTableGateway
         if (!$row) {
             return false;
         }
-        $select = $this->select()->columns(array('depth' => new Expression('COUNT(*)')))
-            ->where(array($this->quoteColumn('left') . ' < ?' => $row->left))
-            ->where(array($this->quoteColumn('right') . ' > ?' => $row->right));
+        $select = $this->select()
+            ->columns(array('depth' => new Expression('COUNT(*)')))
+            ->where(array(
+                $this->quoteColumn('left') . ' < ?' => $row->left
+            ))
+            ->where(array(
+                $this->quoteColumn('right') . ' > ?' => $row->right
+            ));
         $result = $this->selectWith($select)->current();
         if (!$result) {
             return false;
         }
+
         return $result->depth;
     }
 
@@ -572,15 +651,16 @@ abstract class AbstractNest extends AbstractTableGateway
         $order = $order ?: array($this->column['left'] . ' ASC');
 
         $select = $this->select()->where($clause)->order($order);
+
         return $this->selectWith($select);
     }
 
     /**
      * Get ancestor nodes, top to down
      *
-     * @param   mixed   $objective  target node ID or Node
-     * @param   array   $cols
-     * @return  Rowset
+     * @param int|Node  $objective  Target node ID or Node
+     * @param array     $cols
+     * @return Rowset
      */
     public function getAncestors($objective, $cols = null)
     {
@@ -590,7 +670,9 @@ abstract class AbstractNest extends AbstractTableGateway
         }
         $select = $this->select()
             ->where(array($this->quoteColumn('left') . ' <= ?' => $row->left))
-            ->where(array($this->quoteColumn('right') . ' >= ?' => $row->right));
+            ->where(array(
+                $this->quoteColumn('right') . ' >= ?' => $row->right
+            ));
         if (!empty($cols)) {
             $select->columns($cols);
         }
@@ -605,9 +687,9 @@ abstract class AbstractNest extends AbstractTableGateway
     /**
      * Get children nodes
      *
-     * @param   mixed   $objective  target node ID or Node
-     * @param   array   $cols
-     * @return  Rowset
+     * @param int|Node  $objective  Target node ID or Node
+     * @param array     $cols
+     * @return Rowset
      */
     public function getChildren($objective, $cols = null)
     {
@@ -617,7 +699,9 @@ abstract class AbstractNest extends AbstractTableGateway
         }
         $select = $this->select()
             ->where(array($this->quoteColumn('left') . ' >= ?' => $row->left))
-            ->where(array($this->quoteColumn('right') . ' <= ?' => $row->right));
+            ->where(array(
+                $this->quoteColumn('right') . ' <= ?' => $row->right
+            ));
         if (!empty($cols)) {
             $select->columns($cols);
         }
@@ -636,14 +720,18 @@ abstract class AbstractNest extends AbstractTableGateway
     /**
      * Add a section from formulated array
      *
-     * @param   array   $nodes      formulated array of nodes: left, right, ...
-     * @param   mixed   $objective  target node ID or Node
-     * @param   string  $position   position to the target node, potential value: firstOf, lastOf, nextTo, previousTo
-     * @return  bool
+     * @param array     $nodes      Formulated array of nodes:
+     *      left, right, ...
+     * @param int|Node  $objective  Target node ID or Node
+     * @param string    $position   Position to the target node,
+     *      potential value: firstOf, lastOf, nextTo, previousTo
+     * @return bool
      */
     public function graft($nodes, $objective = 0, $position = 'lastOf')
     {
-        if (empty($nodes) || !$node = $this->getPosition($objective, $position)) {
+        if (empty($nodes)
+            || !$node = $this->getPosition($objective, $position)
+        ) {
             return false;
         }
         $node_left = 1;
@@ -666,63 +754,77 @@ abstract class AbstractNest extends AbstractTableGateway
             ));
             $this->insert($data);
         }
+
         return true;
     }
 
     /**
      * Convert a section from a nested array
      *
-     * @param   array       $nodes          associative nested array of nodes
+     * Format of nested array
+     *
+     *  ```
      *                          array(
      *                              array(
-     *                                  'name'  =>
-     *                                  'param' =>
+     *                                  'name'  => <node name>
+     *                                  'param' => <node param>
      *                              ),
      *                              array(
-     *                                  'name'  =>
-     *                                  'param' =>
+     *                                  'name'  => <node name>
+     *                                  'param' => <node param>
      *                                  'child' => array(
      *                                      array(
-     *                                          'name'  =>
-     *                                          'param' =>
+     *                                          'name'  => <node name>
+     *                                          'param' => <node param>
      *                                          'child' => array(
      *                                              array(
-     *                                                  'name'  =>
-     *                                                  'param' =>
+     *                                                  'name'  => <node name>
+     *                                                  'param' => <node param>
      *                                              ),
      *                                          ),
      *                                      ),
      *                                      array(
-     *                                          'name'  =>
-     *                                          'param' =>
+     *                                          'name'  => <node name>
+     *                                          'param' => <node param>
      *                                      ),
      *                                  ),
      *                              ),
      *                           );
+     *  ```
      *
-     * @param    int        $left       Left value
-     * @param    int        $depth      Depth value
-     * @param    int        $right      Right value
-     * @return array    List of formulated associative array
+     * Converted associative array
+     *
+     *  ```
      *                          array(
      *                              array(
-     *                                  'left'  =>
-     *                                  'right' =>
-     *                                  'depth' =>
-     *                                  'name'  =>
-     *                                  'param' =>
+     *                                  'left'  => <left value>
+     *                                  'right' => <right value>
+     *                                  'depth' => <depth value>
+     *                                  'name'  => <node name>
+     *                                  'param' => <node param>
      *                              ),
      *                              array(
-     *                                  'left'  =>
-     *                                  'right' =>
-     *                                  'depth' =>
-     *                                  'name'  =>
-     *                                  'param' =>
+     *                                  'left'  => <left value>
+     *                                  'right' => <right value>
+     *                                  'depth' => <depth value>
+     *                                  'name'  => <node name>
+     *                                  'param' => <node param>
      *                              ),
      *                          );
+     *  ```
+     *
+     * @param array $nodes  Associative nested array of nodes
+     * @param int   $left   Left value
+     * @param int   $depth  Depth value
+     * @param int   $right  Right value
+     * @return array List of formulated associative array
      */
-    public function convertFromNested($nodes, $left = 1, $depth = 0, &$right = null)
-    {
+    public function convertFromNested(
+        $nodes,
+        $left = 1,
+        $depth = 0,
+        &$right = null
+    ) {
         $list = array();
         $right = 0;
         foreach ($nodes as $node) {
@@ -734,7 +836,12 @@ abstract class AbstractNest extends AbstractTableGateway
             $node['depth']  = $depth;
             // Set children if available
             if (isset($node['child'])) {
-                $children = $this->convertFromNested($node['child'], $left + 1, $depth + 1, $right);
+                $children = $this->convertFromNested(
+                    $node['child'],
+                    $left + 1,
+                    $depth + 1,
+                    $right
+                );
                 $right++;
                 // Reset right value based on children's right
                 $node['right'] = $right;
@@ -757,39 +864,49 @@ abstract class AbstractNest extends AbstractTableGateway
     /**
      * Convert a section from an adjacency array
      *
-     * @param    array      $nodes          list of associative array of nodes
+     * Associative array of nodes
+     *
+     *  ```
      *                          array(
-     *                              'key' => array(
-     *                                  'name'      =>
-     *                                  'title'     =>
-     *                                  'param'     =>
+     *                              <node key> => array(
+     *                                  'name'      => <node name>
+     *                                  'title'     => <node title>
+     *                                  'param'     => <node param>
      *                              ),
-     *                              'key' => array(
-     *                                  'name'      =>
-     *                                  'parent'    =>
-     *                                  'title'     =>
-     *                                  'param'     =>
+     *                              <node key> => array(
+     *                                  'name'      => <node name>
+     *                                  'parent'    => <node parent>
+     *                                  'title'     => <node title>
+     *                                  'param'     => <node param>
      *                              ),
      *                          );
-     * @param    int        $left       Left value
-     * @param    int        $depth      Depth value
-     * @return  array   List of formulated associative array
+     *  ```
+     *
+     * Converted associative array
+     *
+     *  ```
      *                          array(
      *                              array(
-     *                                  'left'  =>
-     *                                  'right' =>
-     *                                  'depth' =>
-     *                                  'name'  =>
-     *                                  'param' =>
+     *                                  'left'  => <left value>
+     *                                  'right' => <right value>
+     *                                  'depth' => <depth value>
+     *                                  'name'  => <node name>
+     *                                  'param' => <node param>
      *                              ),
      *                              array(
-     *                                  'left'  =>
-     *                                  'right' =>
-     *                                  'depth' =>
-     *                                  'name'  =>
-     *                                  'param' =>
+     *                                  'left'  => <left value>
+     *                                  'right' => <right value>
+     *                                  'depth' => <depth value>
+     *                                  'name'  => <node name>
+     *                                  'param' => <node param>
      *                              ),
      *                          );
+     *  ```
+     *
+     * @param array $nodes  List of associative array of nodes
+     * @param int   $left   Left value
+     * @param int   $depth  Depth value
+     * @return array List of formulated associative array
      */
     public function convertFromAdjacency($nodes, $left = 1, $depth = 0)
     {
@@ -798,7 +915,8 @@ abstract class AbstractNest extends AbstractTableGateway
         // Set up key container
         $keys = array_fill_keys(array_keys($nodes), 1);
 
-        // Look up node list to append child node to its parent, until no child node is left in container
+        // Look up node list to append child node to its parent,
+        // until no child node is left in container
         $registered = array();
         do {
             foreach (array_keys($keys) as $key) {
@@ -842,28 +960,37 @@ abstract class AbstractNest extends AbstractTableGateway
     /**
      * Enumerate child nodes of a node
      *
-     * @param   mixed   $objective  root node ID or Node or Where
-     * @param   array   $cols       columns to be fetched
-     * @param   bool    $plain      result format, plain array or hirechical tree
-     * @return  array   $ret        associative array of children
+     * Formatted associative array of children
      *
-     *                              Tree format:
-     *                              [id] => array(          // int, node id
-     *                                  //[depth] => {0-?}, // int, node depth
-     *                                  [node]  => array(), // associative array, node data
-     *                                  [child] => array(   // associative array, child nodes
-     *                                      [id]    => array(   // int, node id
-     *                                          //[depth]   => {0-?},   // int, node depth
-     *                                          [node]    => array(),   // associative array, node data
-     *                                          [child]   => array(     // associative array, child nodes
+     * Tree mode
      *
-     *                              plain format:
-     *                              [id] => array(
-     *                                  //[depth] => {0-?},     // int, node depth
-     *                                  //[node]  => array(),   // associative array, child nodes
-     *                              [id] => array(
-     *                                  //[depth] => {0-?},     // int, node depth
-     *                                  //[node]  => array(),   // associative array, child nodes
+     *  ```
+     *                              <id> => array(
+     *                                  //<depth> => {0-?},
+     *                                  <node>  => array(),  node data
+     *                                  <child> => array(   ld nodes
+     *                                      <id>    => array(
+     *                                          //<depth>   => {0-?},
+     *                                          <node>    => array(),
+     *                                          <child>   => array(
+     *  ```
+     *
+     * Plain format
+     *
+     *  ```
+     *                              <id> => array(
+     *                                  //<depth> => {0-?},
+     *                                  //<node>  => array(),  odes
+     *                              <id> => array(
+     *                                  //<depth> => {0-?},
+     *                                  //<node>  => array(),
+     *  ```
+     *
+     * @param int|Node  $objective  Root node ID or Node or Where
+     * @param array     $cols       Columns to be fetched
+     * @param bool      $plain      Result format,
+     *      plain array or hirechical tree
+     * @return array Associative array of children
      */
     public function enumerate($objective = null, $cols = null, $plain = false)
     {
@@ -890,8 +1017,12 @@ abstract class AbstractNest extends AbstractTableGateway
                     $result[$root_id] = $item;
                 }
                 $stack = array();
-                $select->where(array($this->quoteColumn('left') . ' > ?' => $row->left))
-                        ->where(array($this->quoteColumn('right') . ' < ?' => $row->right));
+                $select->where(array(
+                        $this->quoteColumn('left') . ' > ?' => $row->left
+                    ))
+                    ->where(array(
+                        $this->quoteColumn('right') . ' < ?' => $row->right
+                    ));
             }
         }
         if (!empty($cols)) {
@@ -934,7 +1065,8 @@ abstract class AbstractNest extends AbstractTableGateway
 
             $parent =& $ret[$root_id];
             if (!empty($stack)) {
-                // remove nodes with right smaller than current node, which means not ancestors anymore
+                // remove nodes with right smaller than current node,
+                // which means not ancestors anymore
                 $count = count($stack);
                 while ($count && $stack[$count - 1]['right'] < $row->right) {
                     array_pop($stack);
@@ -964,6 +1096,7 @@ abstract class AbstractNest extends AbstractTableGateway
         if (empty($plain) && !$singleRoot && !empty($ret)) {
             $result += $ret;
         }
+
         return $result;
     }
 }

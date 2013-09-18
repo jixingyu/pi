@@ -1,68 +1,91 @@
 <?php
 /**
- * Registry service
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @package         Pi\Application
- * @subpackage      Service
- * @since           3.0
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
+ * @package         Service
  */
 
 namespace Pi\Application\Service;
-use Pi;
 
+use Pi;
+use Pi\Application\Registry\AbstractRegistry;
+use Zend\Cache\Storage\Adapter\AbstractAdapter as CacheStorage;
+
+/**
+ * Registry service
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 class Registry extends AbstractService
 {
-    // Run-time loaded registries
-    //protected $container;
+    /**
+     * Cache storage
+     * @var CacheStorage
+     */
     protected $cache;
+
+    /**
+     * Default cache storage
+     * @var CacheStorage
+     */
     protected $defaultCache;
 
+    /**
+     * Handler container
+     * @var AbstractRegistry[]
+     */
+    protected $handler = array();
+
+    /**
+     * Get registry handler
+     *
+     * @param string        $name
+     * @param sting|null    $module
+     * @return AbstractRegistry
+     */
     public function handler($name, $module = null)
     {
         $key = empty($module) ? $name : $module . '_' . $name;
-        /*
-        if (isset($this->container[$key])) {
-            return $this->container[$key];
+        if (!isset($this->handler[$key])) {
+            $handler = $this->loadHandler($name, $module);
+            $handler->setCache($this->getCache())->setKey($key);
+            $this->handler[$key] = $handler;
         }
 
-        $this->container[$key] = $this->loadHandler($name, $module);
-        $this->container[$key]->setCache($this->getCache())->setKey($key);
-
-        return $this->container[$key];
-        */
-        $handler = $this->loadHandler($name, $module);
-        $handler->setCache($this->getCache())->setKey($key);
-
-        return $handler;
+        return $this->handler[$key];
     }
 
+    /**
+     * Load registry handler
+     *
+     * @param string        $name
+     * @param string|null   $module
+     * @return AbstractRegistry
+     */
     protected function loadHandler($name, $module = null)
     {
         if (empty($module)) {
-            $class = sprintf('Pi\\Application\\Registry\\%s', ucfirst($name));
+            $class = sprintf('Pi\Application\Registry\\%s', ucfirst($name));
         } else {
-            $class = sprintf('Module\\%s\\Registry\\%s', ucfirst($module), ucfirst($name));
+            $class = sprintf(
+                'Module\\%s\Registry\\%s',
+                ucfirst($module),
+                ucfirst($name)
+            );
         }
         $handler = new $class;
+
         return $handler;
     }
 
     /**
      * Remove cache data by namespace
      *
-     * @param string     $namespace
-     * @return boolean
+     * @param string $namespace
+     * @return bool
      */
     public function flush($namespace = '')
     {
@@ -75,25 +98,35 @@ class Registry extends AbstractService
                 $handler->flush();
             }
         }
+
         return $this;
     }
 
     /**
-     * Call a registry method as Pi::service('registry')->registryName->registryMethod();
+     * Magic method to get registry handler
      *
-     * @param string    $handlerName
-     * @return object
+     * Call a registry method as
+     *  `Pi::service('registry')-><registry-name>-><registry-method>();`
+     *
+     * @param string $handlerName
+     * @return AbstractRegistry
      */
     public function __get($handlerName)
     {
         $handler = $this->handler($handlerName);
+
         return $handler;
     }
 
     /**
-     * Call a registry method as Pi::service('registry')->registryMethod('registryName', $arg);
+     * Magic method to call a registry handler's method
      *
-     * @param string    $handlerName
+     * Call a registry method as
+     * `Pi::service('registry')-><registry-method>(<registry-name>, $args);`
+     *
+     * @param string $handlerName
+     * @param array  $args
+     *
      * @return mixed
      */
     public function __call($handlerName, $args)
@@ -106,7 +139,9 @@ class Registry extends AbstractService
     }
 
     /**
-     * Load cache engine
+     * Load default cache storage
+     *
+     * @return CacheStorage
      */
     protected function defaultCache()
     {
@@ -117,29 +152,50 @@ class Registry extends AbstractService
         return $this->defaultCache;
     }
 
-    public function setCache($cache)
+    /**
+     * Set cache storage
+     *
+     * @param CacheStorage $cache
+     * @return void
+     */
+    public function setCache(CacheStorage $cache)
     {
         $this->cache = $cache;
     }
 
+    /**
+     * Get cache storage
+     *
+     * @return CacheStorage
+     */
     public function getCache()
     {
         if (!isset($this->cache)) {
             $this->cache = $this->defaultCache();
         }
+
         return $this->cache;
     }
 
+    /**
+     * Get available registry list
+     *
+     * @return string[]
+     */
     public function getList()
     {
         $registryList = array();
-        $iterator = new \DirectoryIterator(Pi::path('lib/Pi/Application/Registry'));
+        $iterator = new \DirectoryIterator(
+            Pi::path('lib/Pi/Application/Registry')
+        );
         foreach ($iterator as $fileinfo) {
             if (!$fileinfo->isFile() || $fileinfo->isDot()) {
                 continue;
             }
             $directory = $fileinfo->getFilename();
-            if ('AbstractRegistry.php' == $directory || !preg_match('/^[a-z0-9]+\.php/i', $directory)) {
+            if ('AbstractRegistry.php' == $directory
+                || !preg_match('/^[a-z0-9]+\.php/i', $directory)
+            ) {
                 continue;
             }
             $registryList[] = strtolower(basename($directory, '.php'));

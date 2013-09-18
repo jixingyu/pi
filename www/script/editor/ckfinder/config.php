@@ -2,6 +2,7 @@
 /**
  * Connect to Pi Engine system
  */
+/*
 // Skip engine bootup
 define('PI_BOOT_SKIP', 1);
 // Disable error_reporting
@@ -9,12 +10,17 @@ define('APPLICATION_ENV', 'production');
 
 // Lookup Pi Engine boot
 // Pi boot with no engine bootup: current file is located in www/script/...
-/*
- * www/script/editor/ckfinder/config.php
- */
 include '../../../boot.php';
+*/
+
+// Pi boot with no engine bootup: current file is located in www/script/...
+require __DIR__ . '/../../../boot.php';
+
+// Disable debugger message
+Pi::service('log')->mute();
+
 // Load session resource which is required by CKfinder
-Pi::engine()->loadResource('session');
+Pi::engine()->bootResource('session');
 //$session = Pi::service('session')->ckfinder;
 $session = $_SESSION['PI_CKFINDER'];
 /*

@@ -1,20 +1,10 @@
 <?php
 /**
- * User authentication controller
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Module\System
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Module\System\Controller\Front;
@@ -25,17 +15,31 @@ use Pi\Acl\Acl as AclManager;
 use Module\System\Form\LoginForm;
 use Module\System\Form\LoginFilter;
 
+/**
+ * User login/logout controller
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 class LoginController extends ActionController
 {
+    /**
+     * Login form
+     *
+     * @return void
+     */
     public function indexAction()
     {
         if (Pi::config('login_disable', 'user')) {
-            $this->jump(array('route' => 'home'), __('Login is disabled. Please come back later.'), 5);
+            $this->jump(
+                array('route' => 'home'),
+                __('Login is disabled. Please come back later.'),
+                5
+            );
             return;
         }
 
         // If already logged in
-        if (Pi::service('authentication')->hasIdentity()) {
+        if (Pi::service('user')->hasIdentity()) {
             $this->view()->assign('title', __('User login'));
             $this->view()->setTemplate('login-message');
             $this->view()->assign(array(
@@ -57,21 +61,35 @@ class LoginController extends ActionController
         $this->renderForm($form);
     }
 
+    /**
+     * Render login form
+     *
+     * @param LoginForm $form
+     * @param string $message
+     */
     protected function renderForm($form, $message = '')
     {
         $this->view()->setTemplate('login');
-        $configs = Pi::service('registry')->config->read('', 'user');
+        $configs = Pi::registry('config')->read('', 'user');
 
         if (!empty($configs['attempts'])) {
-            $attempts = isset($_SESSION['PI_LOGIN']['attempts']) ? $_SESSION['PI_LOGIN']['attempts'] : 0;
+            $attempts = isset($_SESSION['PI_LOGIN']['attempts'])
+                ? $_SESSION['PI_LOGIN']['attempts'] : 0;
             if (!empty($attempts)) {
                 if ($attempts >= $configs['attempts']) {
-                    $wait = Pi::service('session')->manager()->getSaveHandler()->getLifeTime() / 60;
-                    $message = sprintf(__('Login with the account is suspended, please wait for %d minutes to try again.'), $wait);
+                    $wait = Pi::service('session')->manager()
+                        ->getSaveHandler()->getLifeTime() / 60;
+                    $message = sprintf(
+                        __('Login with the account is suspended, please wait for %d minutes to try again.'),
+                        $wait
+                    );
                     $this->view()->setTemplate('login-suspended');
                 } else {
                     $remaining = $configs['attempts'] - $attempts;
-                    $message = sprintf(__('You have %d times to try.'), $remaining);
+                    $message = sprintf(
+                        __('You have %d times to try.'),
+                        $remaining
+                    );
                 }
             }
         }
@@ -80,21 +98,36 @@ class LoginController extends ActionController
         $this->view()->assign('form', $form);
     }
 
+    /**
+     * Logout
+     */
     public function logoutAction()
     {
         Pi::service('session')->manager()->destroy();
-        $this->jump(array('route' => 'home'), __('You logged out successfully. Now go back to homepage.'));
+        Pi::service('user')->destroy();
+        $this->jump(
+            array('route' => 'home'),
+            __('You logged out successfully. Now go back to homepage.')
+        );
     }
 
+    /**
+     * Process login submission
+     *
+     * @return void
+     */
     public function processAction()
     {
         if (Pi::config('login_disable', 'user')) {
-            $this->jump(array('route' => 'home'), __('Login is closed. Please try later.'), 5);
+            $this->jump(array('route' => 'home'),
+                        __('Login is closed. Please try later.'), 5);
+
             return;
         }
 
         if (!$this->request->isPost()) {
             $this->jump(array('action' => 'index'), __('Invalid request.'));
+
             return;
         }
 
@@ -105,41 +138,56 @@ class LoginController extends ActionController
 
         if (!$form->isValid()) {
             $this->renderForm($form, __('Invalid input, please try again.'));
+
             return;
         }
 
-        $configs = Pi::service('registry')->config->read('', 'user');
+        $configs = Pi::registry('config')->read('', 'user');
 
         $values = $form->getData();
         $identity = $values['identity'];
         $credential = $values['credential'];
 
         if (!empty($configs['attempts'])) {
-            $sessionLogin = isset($_SESSION['PI_LOGIN']) ? $_SESSION['PI_LOGIN'] : array();
-            if (!empty($sessionLogin['attempts']) && $sessionLogin['attempts'] >= $configs['attempts']) {
-                $this->jump(array('route' => 'home'), __('You have tried too many times. Please try later.'), 5);
+            $sessionLogin = isset($_SESSION['PI_LOGIN'])
+                ? $_SESSION['PI_LOGIN'] : array();
+            if (!empty($sessionLogin['attempts'])
+                && $sessionLogin['attempts'] >= $configs['attempts']
+            ) {
+                $this->jump(
+                    array('route' => 'home'),
+                    __('You have tried too many times. Please try later.'),
+                    5
+                );
+
                 return;
             }
         }
 
-        $result = Pi::service('authentication')->authenticate($identity, $credential);
+        $result = Pi::service('user')->authenticate($identity, $credential);
 
         if (!$result->isValid()) {
             if (!empty($configs['attempts'])) {
                 if (!isset($_SESSION['PI_LOGIN'])) {
                     $_SESSION['PI_LOGIN'] = array();
                 }
-                $_SESSION['PI_LOGIN']['attempts'] = isset($_SESSION['PI_LOGIN']['attempts']) ? ($_SESSION['PI_LOGIN']['attempts'] + 1) : 1;
+                $_SESSION['PI_LOGIN']['attempts'] =
+                    isset($_SESSION['PI_LOGIN']['attempts'])
+                    ? ($_SESSION['PI_LOGIN']['attempts'] + 1) : 1;
             }
             $message = __('Invalid credentials provided, please try again.');
             $this->renderForm($form, $message);
+
             return;
         }
 
         if ($configs['rememberme'] && $values['rememberme']) {
-            Pi::service('session')->manager()->rememberme($configs['rememberme'] * 86400);
+            Pi::service('session')->manager()
+                ->rememberme($configs['rememberme'] * 86400);
         }
-        Pi::service('authentication')->wakeup($result->getIdentity());
+        Pi::service('session')->manager()->setUser($result->getData('id'));
+        Pi::service('user')->bind($result->getIdentity(), 'identity');
+        Pi::service('user')->setPersist($result->getData());
         Pi::service('event')->trigger('login', $result->getIdentity());
 
         if (!empty($configs['attempts'])) {
@@ -155,11 +203,18 @@ class LoginController extends ActionController
         $this->jump($redirect, __('You have logged in successfully.'), 2);
     }
 
-    // login form
+    /**
+     * Load login form
+     *
+     * @return LoginForm
+     */
     public function getForm()
     {
         $form = new LoginForm('login');
-        $form->setAttribute('action', $this->url('', array('action' => 'process')));
+        $form->setAttribute(
+            'action',
+            $this->url('', array('action' => 'process'))
+        );
 
         return $form;
     }

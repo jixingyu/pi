@@ -1,21 +1,11 @@
 <?php
 /**
- * Session service
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @package         Pi\Application
- * @subpackage      Service
- * @since           3.0
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
+ * @package         Service
  */
 
 namespace Pi\Application\Service;
@@ -24,17 +14,27 @@ use Pi;
 use Pi\Session\SessionManager;
 use Zend\Session\Container;
 
+/**
+ * Session service
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 class Session extends AbstractService
 {
+    /** {@inheritDoc} */
     protected $fileIdentifier = 'session';
+
     /**
      * Session Manager
+     *
      * @var SessionManager
      */
     protected $manager;
 
     /**
      * Callback on shutdown
+     *
+     * @return void
      */
     public function shutdown()
     {
@@ -50,6 +50,7 @@ class Session extends AbstractService
 
     /**
      * Load session manager
+     *
      * @return SessionManager
      */
     public function manager()
@@ -57,35 +58,54 @@ class Session extends AbstractService
         if (!$this->manager) {
             $options = $this->options;
             $sessionConfig = null;
-            if (!empty($options['config']) && !empty($options['config']['class'])) {
+            if (!empty($options['config'])
+                && !empty($options['config']['class'])
+            ) {
                 $class  = $options['config']['class'];
                 $sessionConfig = new $class;
                 if (isset($options['config']['options'])) {
-                    if (!isset($options['config']['options']['cookie_path']) && $baseUrl = Pi::host()->get('baseUrl')) {
-                        $options['config']['options']['cookie_path'] = rtrim($baseUrl, '/') . '/';
+                    if (!isset($options['config']['options']['cookie_path'])
+                        && $baseUrl = Pi::host()->get('baseUrl')
+                    ) {
+                        $options['config']['options']['cookie_path'] =
+                            rtrim($baseUrl, '/') . '/';
                     }
                     $sessionConfig->setOptions($options['config']['options']);
                 }
             }
             $sessionStorage = null;
-            if (!empty($options['storage']) && !empty($options['storage']['class'])) {
+            if (!empty($options['storage'])
+                && !empty($options['storage']['class'])
+            ) {
                 $class  = $options['storage']['class'];
-                $input  = isset($options['storage']['input']) ? $options['storage']['input'] : null;
+                $input  = isset($options['storage']['input'])
+                    ? $options['storage']['input'] : null;
                 $sessionStorage = new $class($input);
             }
             $saveHandler = null;
-            if (!empty($options['save_handler']) && !empty($options['save_handler']['class'])) {
+            if (!empty($options['save_handler'])
+                && !empty($options['save_handler']['class'])
+            ) {
                 $class  = $options['save_handler']['class'];
-                $opts = isset($options['storage']['options']) ? $options['storage']['options'] : array();
+                $opts = isset($options['save_handler']['options'])
+                    ? $options['save_handler']['options'] : array();
                 $saveHandler = new $class($opts);
             }
-            $this->manager = new SessionManager($sessionConfig, $sessionStorage, $saveHandler);
+            $this->manager = new SessionManager(
+                $sessionConfig,
+                $sessionStorage,
+                $saveHandler
+            );
 
-            if (!empty($options['config']) && !empty($options['config']['validators'])) {
-                $this->manager->setValidators($options['config']['validators']);
+            if (!empty($options['config'])
+                && !empty($options['config']['validators'])
+            ) {
+                $this->manager->setValidators(
+                    $options['config']['validators']
+                );
             }
 
-            // Set default session manager in case Zend\Session is called directly
+            // Set default session manager in case Zend\Session called directly
             Container::setDefaultManager($this->manager);
         }
 
@@ -101,19 +121,15 @@ class Session extends AbstractService
     public function container($name = 'PI')
     {
         $container = new Container($name, $this->manager());
+
         return $container;
     }
 
     /**
-     * Get container
+     * Clear expired containers
      *
-     * @return Container
+     * @return void
      */
-    public function __get($name)
-    {
-        return $this->container($name);
-    }
-
     public function clearExpirations()
     {
         $storage = $this->manager()->getStorage();
@@ -126,11 +142,38 @@ class Session extends AbstractService
             if (!is_array($metadata)) {
                 continue;
             }
-            if ((isset($metadata['EXPIRE']) && $_SERVER['REQUEST_TIME'] > $metadata['EXPIRE'])
-                || (isset($metadata['EXPIRE_HOPS']) && $ts > $metadata['EXPIRE_HOPS']['ts'] && 0 >= $metadata['EXPIRE_HOPS']['hops'])
+            if ((isset($metadata['EXPIRE'])
+                && $_SERVER['REQUEST_TIME'] > $metadata['EXPIRE'])
+                || (isset($metadata['EXPIRE_HOPS'])
+                    && $ts > $metadata['EXPIRE_HOPS']['ts']
+                    && 0 >= $metadata['EXPIRE_HOPS']['hops']
+                   )
             ) {
                 $storage->clear($name);
             }
         }
+    }
+
+    /**
+     * Magic method to get session container
+     *
+     * @param string $name
+     * @return Container
+     */
+    public function __get($name)
+    {
+        return $this->container($name);
+    }
+
+    /**
+     * Magic method to proxy calls to session manager
+     *
+     * @param string $method
+     * @param array $args
+     * @return mixed
+     */
+    public function __call($method, $args)
+    {
+        return call_user_func_array(array($this->manager(), $method), $args);
     }
 }

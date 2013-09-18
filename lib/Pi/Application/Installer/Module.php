@@ -1,40 +1,42 @@
 <?php
 /**
- * Pi module installer
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Pi\Application
- * @subpackage      Installer
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Pi\Application\Installer;
+
 use Pi;
 use Pi\Db\RowGateway\RowGateway as ModuleRow;
 use Zend\EventManager\EventManager;
 use Zend\EventManager\Event;
 
 /**
- * Maintenance of a module: install, uninstall, activate, deactivate, update
+ * Maintenance of a module
  *
- * Calling priority:
- *  \Module\Modulname\Installer\
+ * Actions: install, uninstall, activate, deactivate, update
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
  */
 class Module
 {
+    /**
+     * Results of every operation
+     *
+     * @var array
+     */
     protected $result;
+
+    /** @var array Options */
     protected $options;
+
+    /** @var EventManagerInterface Installer event manager */
     protected $events;
+
+    /** @var Event Installer event */
     protected $event;
 
     /*
@@ -50,16 +52,31 @@ class Module
     const EVENT_DEACTIVATE_POST = 'moudle.installer.install.post';
     */
 
+    /**
+     * Magic method for install, uninstall, update, activate, deactivate, etc.
+     *
+     * @param string    $method
+     * @param array     $args
+     * @return bool
+     * @throws \InvalidArgumentException
+     */
     public function __call($method, $args)
     {
-        if (!in_array($method, array('install', 'uninstall', 'update', 'activate', 'deactivate'))) {
-            throw new \InvalidArgumentException(sprintf('Invalid action "%s".', $method));
+        if (!in_array(
+                $method,
+                array('install', 'uninstall', 'update', 'activate', 'deactivate')
+            )
+        ) {
+            throw new \InvalidArgumentException(
+                sprintf('Invalid action "%s".', $method)
+            );
         }
 
         $model = null;
         $module = array_shift($args);
         $options = empty($args) ? array() : array_shift($args);
-        $moduleVersion = isset($options['version']) ? $options['version'] : null;
+        $moduleVersion = isset($options['version'])
+            ? $options['version'] : null;
         $moduleTitle = isset($options['title']) ? $options['title'] : '';
         if ($module instanceof ModuleRow) {
             $model = $module;
@@ -69,7 +86,8 @@ class Module
             $moduleVersion = $moduleVersion ?: $model->version;
         } else {
             $moduleName = $module;
-            $moduleDirectory = isset($options['directory']) ? $options['directory'] : $module;
+            $moduleDirectory = isset($options['directory'])
+                ? $options['directory'] : $module;
         }
         $event = new Event;
         $event->setParams(array(
@@ -87,9 +105,17 @@ class Module
 
         $this->getEventManager()->trigger('start', null, $event);
 
-        $actionClass = sprintf('Module\\%s\Installer\Action\\%s', ucfirst($moduleDirectory), ucfirst($method));
+        $actionClass = sprintf(
+            'Module\\%s\Installer\Action\\%s',
+            ucfirst($moduleDirectory),
+            ucfirst($method)
+        );
         if (!class_exists($actionClass)) {
-            $actionClass = sprintf('%s\Action\\%s', __NAMESPACE__, ucfirst($method));
+            $actionClass = sprintf(
+                '%s\Action\\%s',
+                __NAMESPACE__,
+                ucfirst($method)
+            );
         }
         $action = new $actionClass($event);
         $action->setEvents($this->getEventManager());
@@ -101,7 +127,12 @@ class Module
             }
             return false;
         };
-        $result = $this->getEventManager()->trigger(sprintf('%s.pre', $method), null, $event, $shortCircuit);
+        $result = $this->getEventManager()->trigger(
+            sprintf('%s.pre', $method),
+            null,
+            $event,
+            $shortCircuit
+        );
         if ($result->stopped()) {
             return false;
         }
@@ -110,15 +141,17 @@ class Module
             return false;
         }
         //$resourceHandler = new Resource($event);
-        //$resourceHandler->attach($this->getEventManager());\
+        //$resourceHandler->attach($this->getEventManager());
         $this->attachResource();
-        $result = $this->getEventManager()->trigger('process', null, $event, $shortCircuit);
+        $result = $this->getEventManager()
+                       ->trigger('process', null, $event, $shortCircuit);
         if ($result->stopped()) {
             $action->rollback();
             return false;
         }
 
-        $this->getEventManager()->trigger(sprintf('%s.post', $method), null, $event);
+        $this->getEventManager()
+             ->trigger(sprintf('%s.post', $method), null, $event);
         $this->getEventManager()->trigger('finish', null, $event);
 
         $status = true;
@@ -129,38 +162,79 @@ class Module
                 break;
             }
         }
+
         return $status;
     }
 
+    /**
+     * Get EventManager
+     *
+     * @return EventManager
+     */
     public function getEventManager()
     {
         if (!$this->events) {
             $this->events = new EventManager;
         }
+
         return $this->events;
     }
 
+    /**
+     * Attach default listeners to event mananger
+     *
+     * @return void
+     */
     protected function attachDefaultListeners()
     {
         $events = $this->getEventManager();
         $events->attach('start', array($this, 'loadConfig'));
+        $events->attach('start', array($this, 'clearCache'));
         $events->attach('finish', array($this, 'clearCache'));
         $events->attach('finish', array($this, 'updateMeta'));
     }
 
+    /**
+     * Clear system caches
+     *
+     * @param Event $e
+     * @return void
+     */
     public function clearCache(Event $e)
     {
         Pi::persist()->flush();
         Pi::service('cache')->clearByNamespace($e->getParam('module'));
-        Pi::service('registry')->module->clear($e->getParam('module'));
-        Pi::service('registry')->modulelist->clear($e->getParam('module'));
+        Pi::registry('module')->clear($e->getParam('module'));
+        Pi::registry('modulelist')->clear($e->getParam('module'));
     }
 
+    /**
+     * Get operation results
+     *
+     * Returns results of every operation in an associative array:
+     *
+     * <code>
+     *  array(
+     *      '<action-name>' => array(
+     *          'status'    => <true|false>,
+     *          'message'   => <Message array>[],
+     *      ),
+     *  );
+     * </code>
+     *
+     * @return array
+     */
     public function getResult()
     {
         return $this->event->getParam('result');
     }
 
+    /**
+     * Render messages
+     *
+     * @param array|null $message
+     * @return string
+     */
     public function renderMessage($message = null)
     {
         if (null === $message) {
@@ -168,22 +242,36 @@ class Module
         }
         $content = '';
         foreach ($message as $action => $state) {
-            //$content .= '<p>';
-            $content .= $action  . ': ' . (($state['status'] === false) ? 'failed' : 'passed');
+            $content .= $action  . ': '
+                      . (($state['status'] === false) ? 'failed' : 'passed');
             if (!empty($state['message'])) {
-                $content .= '<br />&nbsp;&nbsp;' . implode('<br />&nbsp;&nbsp;', (array) $state['message']);
+                $content .= '<br />&nbsp;&nbsp;'
+                          . implode('<br />&nbsp;&nbsp;', $state['message']);
             }
-            //$content .= '</p>';
         }
+
         return $content;
     }
 
+    /**
+     * Update module meta data via re-creating them
+     *
+     * @param Event $e
+     * @return bool
+     */
     public function updateMeta(Event $e)
     {
         Pi::service('module')->createMeta();
+
         return true;
     }
 
+    /**
+     * Load module meta
+     *
+     * @param Event $e
+     * @return void
+     */
     public function loadConfig(Event $e)
     {
         $config = Pi::service('module')->loadMeta($e->getParam('directory'));
@@ -193,6 +281,11 @@ class Module
         }
     }
 
+    /**
+     * Attach install resoures
+     *
+     * @return void
+     */
     protected function attachResource()
     {
         $resourceHandler = new Resource($this->event);

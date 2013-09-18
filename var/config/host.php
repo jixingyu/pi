@@ -1,37 +1,37 @@
 <?php
 /**
+ * Pi Engine (http://pialog.org)
+ *
  * Pi Engine host specifications
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @version         $Id$
  */
 
-//Host definition file
-//Paths/URLs to system folders
-//URIs without a leading slash are considered relative to the current Pi Engine host location
-//URIs with a leading slash are considered semi-relative (you must setup proper rewriting rules in your server conf)
-
+/**
+ * Host definition file
+ *
+ * Paths/URLs to system folders
+ *
+ * - URIs without a leading slash are considered relative
+ *      to the current Pi Engine host location
+ * - URIs with a leading slash are considered semi-relative
+ *      requires proper rewriting rules in server conf
+ */
 return array(
     // URIs to resources
     // If URI is a relative one then www root URI will be prepended
     'uri'       => array(
         // WWW root URI
-        'www'       => 'http://siteurl.tld',
+        'www'       => 'http://pi-engine.org',
         // URI to access uploads directory
-        'upload'    => 'http://siteurl.tld/upload',
+        'upload'    => 'http://pi-engine.org/upload',
         // URI to access assets directory
-        'asset'     => 'http://siteurl.tld/asset',
+        'asset'     => 'http://pi-engine.org/asset',
         // URI to access static files directory
-        'static'    => 'http://siteurl.tld/static',
+        'static'    => 'http://pi-engine.org/static',
     ),
 
     // Paths to resources
@@ -62,9 +62,10 @@ return array(
         'vendor'    => '/path/to/lib/vendor',
 
         // Dependent paths
-        // Note: optional, will be located in var if not specified
         // Path to global configuration directory
         'config'    => '/path/to/var/config',
+        // Path to custom configuration directory
+        'custom'    => '/path/to/var/custom',
         // Path to cache files directory
         'cache'     => '/path/to/var/cache',
         // Path to logs directory

@@ -1,45 +1,43 @@
 <?php
 /**
- * Navigation breadcrumbs helper
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Pi\View
- * @subpackage      Helper
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
+ * @package         View
  */
 
 namespace Pi\View\Helper\Navigation;
 
 use Pi;
 use Zend\View\Helper\Navigation\Breadcrumbs as ZendBreadcrumbs;
-use Zend\Cache\Storage\Adapter\AbstractAdapter as CacheAdapter;
 
+/**
+ * Navigation breadcrumbs helper
+ *
+ * {@inheritDoc}
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 class Breadcrumbs extends ZendBreadcrumbs
 {
     /**
      * Whether invisible items should be rendered by this helper
-     *
      * @var bool
      */
     protected $renderInvisible = true;
 
     /**
      * Cache container
-     *
-     * @var StdClass
+     * @var \StdClass
      */
     protected $cache;
 
+    /**
+     * Set cache container
+     *
+     * @param \StdClass $cache
+     */
     public function setCache($cache)
     {
         $this->cache = $cache;
@@ -50,9 +48,10 @@ class Breadcrumbs extends ZendBreadcrumbs
      *
      * Implements {@link HelperInterface::render()}.
      *
-     * @param  AbstractContainer $container [optional] container to render. Default is
-     *                              to render the container registered in the helper.
-     * @return string               helper output
+     * @param  AbstractContainer $container
+     *      [optional] container to render. Default is
+     *      to render the container registered in the helper.
+     * @return string
      */
     public function render($container = null)
     {
@@ -64,8 +63,11 @@ class Breadcrumbs extends ZendBreadcrumbs
             $content = $this->cache->storage->getItem($cacheKey);
             if (null !== $content) {
                 if (Pi::service()->hasService('log')) {
-                    Pi::service('log')->info('Breadcrumbs is loaded from cache.');
+                    Pi::service('log')->info(
+                        'Breadcrumbs is loaded from cache.'
+                    );
                 }
+
                 return $content;
             }
         }

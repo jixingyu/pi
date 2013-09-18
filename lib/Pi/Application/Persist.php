@@ -1,36 +1,35 @@
 <?php
 /**
- * Kernel persist
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @package         Pi\Application
- * @since           3.0
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Pi\Application;
 
 /**
  * Gateway for persist handlers
+ *
+ * The class is supposed to serve system only, i.e. not called by modules
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
  */
 class Persist
 {
     /**
      * Currently active persist handler
+     *
+     * @var Persist\AbstractStorage
      */
     protected $handler;
 
     /**
-     * Backend storage of currently active persist handler, potential types: Apc, Memcached, Memcache, Redis, File, etc.
+     * Backend storage of currently active persist handler,
+     * potential types: Apc, Memcached, Memcache, Redis, File, etc.
+     *
+     * @var string
      */
     protected $storage;
 
@@ -38,14 +37,16 @@ class Persist
      * Constructor
      *
      * @param array $config
-     * @return void
      */
     public function __construct($config = array())
     {
         $storage = ucfirst($config['storage']);
-        $this->handler = $this->loadHandler($storage, isset($config['options']) ? $config['options'] : array());
+        $this->handler = $this->loadHandler($storage, isset($config['options'])
+            ? $config['options'] : array());
         if (!$this->handler) {
-            throw new \DomainException(sprintf('Storage "%s" is not supported.', $storage));
+            throw new \DomainException(
+                sprintf('Storage "%s" is not supported.', $storage)
+            );
         }
         $this->storage = $storage;
         $this->handler->setNamespace($config['namespace']);
@@ -56,11 +57,12 @@ class Persist
      *
      * @param string    $storage
      * @param array     $options
-     * @return Persist\StorageInterface|false
+     * @return Persist\AbstractStorage|false
      */
     public function loadHandler($storage, $options = array())
     {
-        $class = __NAMESPACE__ . '\\' . sprintf('Persist\\%sStorage', $storage);
+        $class = __NAMESPACE__ . '\\'
+               . sprintf('Persist\\%sStorage', $storage);
         try {
             $handler = new $class($options);
         } catch (\Exception $e) {
@@ -72,7 +74,7 @@ class Persist
     /**
      * Gets currently active backend handler
      *
-     * @return {Persist\StorageInterface}|false
+     * @return Persist\AbstractStorage|false
      */
     public function getHandler()
     {
@@ -86,7 +88,8 @@ class Persist
      */
     public function isValid()
     {
-        return (!empty($this->type) && $this->type != "Filesystem") ? true : false;
+        return (!empty($this->type) && $this->type != "Filesystem")
+            ? true : false;
     }
 
     /**
@@ -103,21 +106,50 @@ class Persist
      * Persist APIs, proxy to handler
      * @see Persist\AbstractStorage
      */
+    /**
+     * Load an entity
+     *
+     * @param string $id
+     * @return mixed
+     * @see Persist\AbstractStorage::load()
+     */
     public function load($id)
     {
         return $this->handler->load($id);
     }
 
+    /**
+     * Save an entity
+     *
+     * @param mixed $data
+     * @param string $id
+     * @param int $ttl
+     * @return void
+     * @see Persist\AbstractStorage::save()
+     */
     public function save($data, $id, $ttl = 0)
     {
         return $this->handler->save($data, $id, $ttl);
     }
 
+    /**
+     * Remove an entity
+     *
+     * @param string $id
+     * @return bool
+     * @see Persist\AbstractStorage::remove()
+     */
     public function remove($id)
     {
         return $this->handler->remove($id);
     }
 
+    /**
+     * Flush
+     *
+     * @return bool
+     * @see Persist\AbstractStorage::flush()
+     */
     public function flush()
     {
         $this->handler->flush();
@@ -125,7 +157,11 @@ class Persist
     /**#@-*/
 
     /**
-     * @see Persist\AbstractStorage
+     * Magic methods call {@link Persist\AbstractStorage}
+     *
+     * @param string    $method
+     * @param array     $params
+     * @return mixed
      */
     public function __call($method, $params)
     {

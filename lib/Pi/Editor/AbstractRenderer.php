@@ -1,20 +1,10 @@
 <?php
 /**
- * Pi Engine Editor Abstract Renderer
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Pi\Editor
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Pi\Editor;
@@ -23,24 +13,36 @@ use Pi;
 use Zend\View\Renderer\RendererInterface as Renderer;
 use Zend\Form\ElementInterface;
 
+/**
+ * Editor renderer abstract class
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 abstract class AbstractRenderer
 {
     /**
      * File name of config data
+     *
      * @var string
      */
     protected $configFile = '';
 
+    /** @var array Options */
     protected $options = array();
+
+    /** @var array Renderer attributes */
     protected $attributes = array();
 
     /**
      * View renderer
+     *
      * @var Renderer
      */
     protected $view;
 
     /**
+     * Constructor
+     *
      * @param  array $confg Options and attributes
      */
     public function __construct($config = array())
@@ -49,14 +51,20 @@ abstract class AbstractRenderer
             $configDefault = Pi::config()->load($this->configFile);
             if (isset($configDefault['options'])) {
                 if (isset($config['options'])) {
-                    $config['options'] = array_merge($configDefault['options'], $config['options']);
+                    $config['options'] = array_merge(
+                        $configDefault['options'],
+                        $config['options']
+                    );
                 } else {
                     $config['options'] = $configDefault['options'];
                 }
             }
             if (isset($configDefault['attributes'])) {
                 if (isset($config['attributes'])) {
-                    $config['attributes'] = array_merge($configDefault['attributes'], $config['attributes']);
+                    $config['attributes'] = array_merge(
+                        $configDefault['attributes'],
+                        $config['attributes']
+                    );
                 } else {
                     $config['attributes'] = $configDefault['attributes'];
                 }
@@ -74,11 +82,12 @@ abstract class AbstractRenderer
      * Set view renderer
      *
      * @param Renderer $view
-     * @return AbstractEditor
+     * @return $this
      */
     public function setView(Renderer $view)
     {
         $this->view = $view;
+
         return $this;
     }
 
@@ -86,11 +95,12 @@ abstract class AbstractRenderer
      * Set options for an element.
      *
      * @param  array $options
-     * @return AbstractEditor
+     * @return $this
      */
     public function setOptions($options)
     {
         $this->options = $options;
+
         return $this;
     }
 
@@ -108,7 +118,7 @@ abstract class AbstractRenderer
      * Return the specified option
      *
      * @param string $option
-     * @return NULL|mixed
+     * @return null|mixed
      */
     public function getOption($option)
     {
@@ -123,11 +133,12 @@ abstract class AbstractRenderer
      * Set value for option
      *
      * @param  string $name
-     * @return AbstractEditor
+     * @return $this
      */
     public function setOption($name, $value)
     {
         $this->options[$name] = $value;
+
         return $this;
     }
 
@@ -136,11 +147,12 @@ abstract class AbstractRenderer
      *
      * @param  string $key
      * @param  mixed  $value
-     * @return AbstractEditor
+     * @return $this
      */
     public function setAttribute($key, $value)
     {
         $this->attributes[$key] = $value;
+
         return $this;
     }
 
@@ -155,6 +167,7 @@ abstract class AbstractRenderer
         if (!array_key_exists($key, $this->attributes)) {
             return null;
         }
+
         return $this->attributes[$key];
     }
 
@@ -175,13 +188,14 @@ abstract class AbstractRenderer
      * Implementation will decide if this will overwrite or merge.
      *
      * @param  array $attributes
-     * @return AbstractEditor
+     * @return $this
      */
     public function setAttributes($attributes)
     {
         foreach ($attributes as $key => $value) {
             $this->setAttribute($key, $value);
         }
+
         return $this;
     }
 

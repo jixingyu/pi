@@ -1,36 +1,37 @@
 <?php
 /**
- * Security check for Pi Engine
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           1.0
- * @package         Pi\Kernel
- * @subpackage      Security
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Pi\Security;
 
 use Pi;
 
+/**
+ * Security handler with variety of adapters
+ *
+ *
+ * Policy with different result from each adapter:
+ *
+ * - true: following evaluations will be terminated and current request
+ *      is approved
+ * - false: following evaluations will be terminated and current request
+ *      is denied
+ * - null: continue
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 class Security
 {
-    /**#@++
-     * Check security settings
-     *
-     * Policy: Returns TRUE will cause process quite and the current request will be approved; returns FALSE will cause process quit and request will be denied
-     */
     /**
-     * Check for IPs
+     * Check against IPs
+     *
+     * @param array $options
+     * @return bool|null
      */
     public static function ip($options = array())
     {
@@ -52,7 +53,8 @@ class Security
 
         // Check upon bad IPs
         if (!empty($options['bad'])) {
-            $pattern = is_array($options['bad']) ? implode('|', $options['bad']) : $options['bad'];
+            $pattern = is_array($options['bad'])
+                ? implode('|', $options['bad']) : $options['bad'];
             foreach ($clientIp as $ip) {
                 if (preg_match('/' . $pattern . '/', $ip)) {
                     return false;
@@ -62,7 +64,8 @@ class Security
 
         // Check upon good IPs
         if (!empty($options['good'])) {
-            $pattern = is_array($options['good']) ? implode('|', $options['good']) : $options['good'];
+            $pattern = is_array($options['good'])
+                ? implode('|', $options['good']) : $options['good'];
             foreach ($clientIp as $ip) {
                 if (preg_match('/' . $pattern . '/', $ip)) {
                     return true;
@@ -74,13 +77,15 @@ class Security
     }
 
     /**
-     * Check for super globals
+     * Check against super globals contamination
+     *
+     * @param array $globals Name of super globals to check
+     * @return bool|null
      */
-    public static function globals($options = array())
+    public static function globals($globals = array())
     {
-        $items = $options;
-        array_walk($items, 'trim');
-        $items = array_filter($items);
+        array_walk($globals, 'trim');
+        $items = array_filter($globals);
         foreach ($items as $item) {
             if (isset($_REQUEST[$item])) {
                 return false;
@@ -91,19 +96,22 @@ class Security
     }
 
     /**
-     * Magic method to access custom security settings
+     * Magic method to access against custom security adapters
      *
-     * @param string $method The security setting to be checked
-     * @param array  $args  arguments for the setting
+     * @param string $method Security adapter to be checked
+     * @param array  $args  Arguments for the setting
+     * @return bool|null
      */
     public static function __callStatic($method, $args = array())
     {
         $class = __NAMESPACE__ . '\\' . ucfirst($method);
-        if (class_exists($class) && is_subclass_of($class, __NAMESPACE__ . '\AbstractAdapter')) {
+        if (class_exists($class)
+            && is_subclass_of($class, __NAMESPACE__ . '\AbstractAdapter')
+        ) {
             $options = $args[0];
             return $class::check($options);
         }
+
         return null;
     }
-    /*#@-*/
 }

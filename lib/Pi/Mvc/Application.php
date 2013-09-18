@@ -1,20 +1,10 @@
 <?php
 /**
- * Pi Application abstraction
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Pi\Mvc
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Pi\Mvc;
@@ -23,37 +13,14 @@ use Pi;
 use Pi\Application\Engine\AbstractEngine;
 use Zend\Mvc\Application as ZendApplication;
 use Zend\Mvc\MvcEvent;
+use Zend\Mvc\Service;
+use Zend\ServiceManager\ServiceManager;
 
 /**
- * Main application class for invoking applications
+ * Application handler
  *
- * Expects the user will provide a configured ServiceManager, configured with
- * the following services:
- *
- * - EventManager
- * //- ModuleManager
- * - Request
- * - Response
- * - RouteListener
- * - Router
- * - DispatchListener
- * - ViewManager
- *
- * The most common workflow is:
- * <code>
- * $services = new Pi\ServiceManager\ServiceManager($servicesConfig);
- * $app      = new Application($appConfig, $services);
- * $app->bootstrap();
- * $response = $app->run();
- * $response->send();
- * </code>
- *
- * bootstrap() opts in to the default route, dispatch, and view listeners,
- * sets up the MvcEvent, and triggers the bootstrap event. This can be omitted
- * if you wish to setup your own listeners and/or workflow; alternately, you
- * can simply extend the class to override such behavior.
- *
- * @see   Zend\Mvc\Application
+ * {@inheritDoc}
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
  */
 class Application extends ZendApplication
 {
@@ -70,14 +37,54 @@ class Application extends ZendApplication
     protected $engine;
 
     /**
+     * Set listeners
+     *
+     * @param string[] $listeners
+     * @return $this
+     */
+    public function setListeners(array $listeners = array())
+    {
+        if ($listeners) {
+            $this->defaultListeners = array_merge(
+                $this->defaultListeners,
+                $listeners
+            );
+        }
+
+        return $this;
+    }
+
+    /**
+     * Load application hander
+     *
+     * @param array $configuration
+     * @return $this
+     */
+    public static function load($configuration = array())
+    {
+        $smConfig = isset($configuration['service_manager'])
+            ? $configuration['service_manager'] : array();
+        $listeners = isset($configuration['listeners'])
+            ? $configuration['listeners'] : array();
+        $serviceManager = new ServiceManager(
+            new Service\ServiceManagerConfig($smConfig)
+        );
+        //$serviceManager->setService('Configuration', $configuration);
+        $serviceManager->get('Configuration')->exchangeArray($configuration);
+
+        return $serviceManager->get('Application')->setListeners($listeners);
+    }
+
+    /**
      * Set section, called by Engine
      *
      * @param string $section
-     * @return Application
+     * @return $this
      */
     public function setSection($section = null)
     {
         $this->section = $section;
+
         return $this;
     }
 
@@ -95,11 +102,12 @@ class Application extends ZendApplication
      * Set application boot engine
      *
      * @param AbstractEngine $engine
-     * @return Application
+     * @return $this
      */
     public function setEngine(AbstractEngine $engine = null)
     {
         $this->engine = $engine;
+
         return $this;
     }
 
@@ -119,7 +127,7 @@ class Application extends ZendApplication
     /**
      * Get RouteMatch of MvcEvent
      *
-     * @return
+     * @return \Zend\Mvc\Router\RouteMatch
      */
     public function getRouteMatch()
     {
@@ -129,7 +137,7 @@ class Application extends ZendApplication
     /**
      * Get router of MvcEvent
      *
-     * @return type
+     * @return \Zend\Mvc\Router\RouteStackInterface
      */
     public function getRouter()
     {
@@ -141,41 +149,7 @@ class Application extends ZendApplication
      * Extended from Zend\Mvc\Application
      */
     /**
-     * Static method for quick and easy initialization of the Application.
-     *
-     * If you use this init() method, you cannot specify a service with the
-     * name of 'ApplicationConfig' in your service manager config. This name is
-     * reserved to hold the array from application.config.php.
-     *
-     * The following services can only be overridden from application.config.php:
-     *
-     * - ModuleManager
-     * - SharedEventManager
-     * - EventManager & Zend\EventManager\EventManagerInterface
-     *
-     * All other services are configured after module loading, thus can be
-     * overridden by modules.
-     *
-     * @param array $configuration
-     * @return Application
-     */
-    public static function init($configuration = array())
-    {
-        $smConfig = isset($configuration['service_manager']) ? $configuration['service_manager'] : array();
-        $serviceManager = new ServiceManager(new Service\ServiceManagerConfig($smConfig));
-        $serviceManager->setService('ApplicationConfig', $configuration);
-        //$serviceManager->get('ModuleManager')->loadModules();
-        return $serviceManager->get('Application')->bootstrap();
-    }
-
-    /**
-     * Complete the request
-     *
-     * Triggers "render" and "finish" events, and returns response from
-     * event object.
-     *
-     * @param  MvcEvent $event
-     * @return Response
+     * {@inheritdoc}
      */
     protected function completeRequest(MvcEvent $event)
     {
@@ -185,7 +159,13 @@ class Application extends ZendApplication
          */
         if (Pi::service()->hasService('log')) {
             if ($this->getRouteMatch()) {
-                Pi::service('log')->info(sprintf('Route: %s-%s-%s.', $this->getRouteMatch()->getParam('module'), $this->getRouteMatch()->getParam('controller'), $this->getRouteMatch()->getParam('action')));
+                Pi::service('log')->info(sprintf(
+                    'Route: %s:%s-%s-%s.',
+                    $this->getSection(),
+                    $this->getRouteMatch()->getParam('module'),
+                    $this->getRouteMatch()->getParam('controller'),
+                    $this->getRouteMatch()->getParam('action')
+                ));
             } else {
                 Pi::service('log')->err($event->getError());
             }

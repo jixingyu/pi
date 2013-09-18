@@ -1,21 +1,11 @@
 <?php
 /**
- * Pi Engine taxonomy service
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @package         Pi\Application
- * @subpackage      Service
- * @since           3.0
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
+ * @package         Service
  */
 
 namespace Pi\Application\Service;
@@ -50,12 +40,16 @@ use Pi\Application\Model\Nest as Model;
  *
  *  Pi::service('taxonomy')->deleteDomain($domainName, $deleteTaxa = true);
  *  Pi::service('taxonomy')->deleteDomain($domainId, $deleteTaxa = true);
- *
  * </code>
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
  */
 class Taxonomy extends AbstractService
 {
+    /** @var string Default domain */
     protected $defaultDomain = 'taxon';
+
+    /** @var string[] Taxon columns */
     protected $columnsTaxon = array('name', 'title', 'description');
 
     /**#@+
@@ -65,7 +59,8 @@ class Taxonomy extends AbstractService
      * Canonize taxon data
      *
      * @param array $data
-     * @see Pi\Db\Table\AbstractNest::convertFromNested
+     * @return void
+     * @see Pi\Db\Table\AbstractNest::convertFromNested()
      */
     protected function canonizeTaxon(&$data)
     {
@@ -85,7 +80,7 @@ class Taxonomy extends AbstractService
     }
 
     /**
-     * Create taxon data table for a damon and return corresponding model on success
+     * Create taxon data table for a damon and return corresponding model
      *
      * @param string $name Domain name
      * @return Model|false
@@ -152,13 +147,13 @@ class Taxonomy extends AbstractService
     /**
      * Add taxon data to a taxonomy domain
      *
-     * @param array $taxonData Nested taxon data
-     *                  string: name            Domain name, required
-     *                  string: title           Domain title, optional
-     *                  string: description     Domain description, optional
-     * @see Pi\Db\Table\AbstractNest::convertFromNested
+     * @param array $taxonData Nested taxon data =>
+     *                  string: name            Domain name, required;
+     *                  string: title           Domain title, optional;
+     *                  string: description     Domain description, optional.
      * @param string $domainName
      * @return bool
+     * @see Pi\Db\Table\AbstractNest::convertFromNested()
      */
     public function add($taxonData, $domainName = null)
     {
@@ -222,13 +217,13 @@ class Taxonomy extends AbstractService
     /**
      * Update taxa data for a domain
      *
-     * @param array $taxonData Nested taxon data
-     *                  string: name            Domain name, required
-     *                  string: title           Domain title, optional
-     *                  string: description     Domain description, optional
-     * @see Pi\Db\Table\AbstractNest::convertFromNested
+     * @param array $taxonData Nested taxon data =>
+     *                  string: name            Domain name, required;
+     *                  string: title           Domain title, optional;
+     *                  string: description     Domain description, optional.
      * @param string $domainName
      * @return bool
+     * @see Pi\Db\Table\AbstractNest::convertFromNested()
      */
     public function update($taxonData, $domainName = null)
     {
@@ -249,7 +244,7 @@ class Taxonomy extends AbstractService
      *
      * @param string $domainName
      * @param array  $cols Fields to fetch
-     * @return array|false
+     * @return array|bool
      */
     public function getTree($domainName = null, $cols = array())
     {
@@ -272,20 +267,19 @@ class Taxonomy extends AbstractService
      *
      * @param string $domainName
      * @param array  $cols Fields to fetch
-     * @return array|false
+     * @return array|bool
      */
     public function getList($domainName = null, $cols = array())
     {
         $list = false;
         $data = $this->getTree($domainName, $cols);
         if (false !== $data) {
-            $transform = function (&$node, &$plainList, $pid)
-            {
+            $transform = function (&$node, &$plainList, $pid, &$transform) {
+                $id = $node['id'];
                 $node['pid']    = $pid;
                 $plainList[$id] = $node;
                 if (isset($node['child'])) {
                     unset($plainList[$id]['child']);
-                    $id = $node['id'];
                     foreach ($node['child'] as $cid => &$page) {
                         $transform($page, $plainList, $id);
                     }
@@ -325,11 +319,11 @@ class Taxonomy extends AbstractService
     /**
      * Add a taxonomy domain, and add its taxa data if provided
      *
-     * @param array $domainData
-     *                  string: name            Domain name, required
-     *                  string: title           Domain title, optional
-     *                  string: description     Domain description, optional
-     *                  string: module          Module name, optional
+     * @param array $domainData =>
+     *                  string: name            Domain name, required;
+     *                  string: title           Domain title, optional;
+     *                  string: description     Domain description, optional;
+     *                  string: module          Module name, optional.
      * @param array|false $taxonData
      * @return int Created ID
      */
@@ -349,13 +343,13 @@ class Taxonomy extends AbstractService
     /**
      * Update a taxonomy domain, and update its taxa data if provided
      *
-     * @param array $domainData
-     *                  int:    id              Domain id, optional
-     *                  string: name            Domain name, required
-     *                  string: title           Domain title, optional
-     *                  string: description     Domain description, optional
-     *                  string: module          Module name, optional
-     * @param array|false $taxonData
+     * @param array $domainData =>
+     *                  int:    id              Domain id, optional;
+     *                  string: name            Domain name, required;
+     *                  string: title           Domain title, optional;
+     *                  string: description     Domain description, optional;
+     *                  string: module          Module name, optional.
+     * @param array|bool $taxonData
      * @return int Created ID
      */
     public function updateDomain($domainData, $taxonData = false)
@@ -364,7 +358,10 @@ class Taxonomy extends AbstractService
             $id = $domainData['id'];
             $row = Pi::model('taxonomy_domain')->find($id);
         } else {
-            $row = Pi::model('taxonomy_domain')->find($domainData['name'], 'name');
+            $row = Pi::model('taxonomy_domain')->find(
+                $domainData['name'],
+                'name'
+            );
         }
         $data = $this->canonizeDomain($domainData);
         $row->assign($data);
@@ -381,7 +378,7 @@ class Taxonomy extends AbstractService
      * Get a taxonomy domain
      *
      * @param int|string $entity
-     * @return array|false
+     * @return array|bool
      */
     public function getDomain($entity)
     {
@@ -390,6 +387,7 @@ class Taxonomy extends AbstractService
         } else {
             $row = Pi::model('taxonomy_domain')->find($entity, 'name');
         }
+
         return $row ? $row->toArray() : false;
     }
 
@@ -397,7 +395,9 @@ class Taxonomy extends AbstractService
      * Delete a taxonomy domain, and delete its taxa if required
      *
      * @param int|string $entity
-     * @params bool $deleteTaxa
+     * @param bool       $deleteTaxa
+     *
+     * @throws \Exception
      * @return bool
      */
     public function deleteDomain($entity, $deleteTaxa = true)
@@ -420,6 +420,7 @@ class Taxonomy extends AbstractService
         if ($deleteTaxa) {
             $status = $this->delete($row->name);
         }
+
         return $status;
     }
     /**#@-*/

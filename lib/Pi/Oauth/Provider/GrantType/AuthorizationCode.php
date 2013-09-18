@@ -10,12 +10,10 @@ class AuthorizationCode extends AbstractGrantType
     protected function validateRequest()
     {
         $request = $this->getRequest();
-        if (!$request->getRequest('client_id')) {
-            $this->setError('invalid_request');
-            return false;
-        }
+
         if (!$request->getRequest('code')) {
             $this->setError('invalid_request');
+
             return false;
         }
 
@@ -26,14 +24,23 @@ class AuthorizationCode extends AbstractGrantType
     {
         $request = $this->getRequest();
         $code = $request->getRequest('code');
-        $codeData = Service::storage('authorization_code')->get($code);
+        $codeData = Service::storage('authorization_code')->getbyCode($code);
         if (!$codeData) {
-            $this->setError('invalid_grant');
+            $this->setError('invalid_grant', 'invalid Authorization code');
+
             return false;
         }
 
         if ($codeData['client_id'] != $request->getRequest('client_id')) {
-            $this->setError('invalid_grant');
+            $this->setError('invalid_grant', 'this code is not grant');
+
+            return false;
+        }
+
+        if ($codeData['expires'] < time()) {
+            Service::storage('authorization_code')->expire();
+            $this->setError('invalid_grant', 'this code is expired');
+
             return false;
         }
 
@@ -42,19 +49,27 @@ class AuthorizationCode extends AbstractGrantType
          * @uri - http://tools.ietf.org/html/rfc6749#section-4.1.3
          */
         if (!empty($codeData['redirect_uri'])) {
-            if (!$request->request('redirect_uri') || urldecode($request->request('redirect_uri')) != $codeData['redirect_uri']) {
-                $this->setError('invalid_grant');
+            if (!$request->getRequest('redirect_uri') || urldecode($request->getRequest('redirect_uri')) != $codeData['redirect_uri']) {
+                $this->setError('invalid_grant', 'redirect uri is not match');
+
                 return false;
             }
         }
+        /**
+        * set authorization code scope and resource owner
+        */
+        $request->setParameters(array(
+            'scope'             => $codeData['scope'],
+            'resource_owner'    => $codeData['resource_owner']
+        ));
 
         return true;
     }
 
-    public function createToken()
+    public function createToken($createRreshToken = false)
     {
         $request = $this->getRequest();
-        Service::storage('authorization_code')->delete($request->getRequest('code'));
+        Service::storage('authorization_code')->deleteCode($request->getRequest('code'));
 
         // @see http://tools.ietf.org/html/rfc6749#section-4.1.4 Optional for authorization_code grant_type
         $createFreshToken = Service::server('grant')->hasGrantType('refresh_token');

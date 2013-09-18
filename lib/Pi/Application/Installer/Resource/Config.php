@@ -1,31 +1,23 @@
 <?php
 /**
- * Pi module installer resource
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Pi\Application
- * @subpackage      Installer
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Pi\Application\Installer\Resource;
+
 use Pi;
 
 /**
- * Config definition
- * With category and configs
+ * Config setup
+ *
+ * - With category and configs
+ *
  * <code>
- *  return array(
+ *  array(
  *      'category'  => array(
  *          array(
  *              'name'  => 'category_name',
@@ -94,12 +86,12 @@ use Pi;
  *              'description'   => '',
  *              'value'         => 'a config',
  *              'filter'        => 'text',
- *              'visible'       => 0,                       // Not show on edit page
+ *              'visible'       => 0, // Not show on edit page
  *          ),
  *          // Orphan configs
  *          'config_name_e' => array(
  *              'title'         => 'Config title E',
- *              'category'      => '',                      // Not managed by any category
+ *              'category'      => '', // Not managed by any category
  *              'description'   => '',
  *              'value'         => 'a config',
  *              'edit'          => 'SpecifiedEditElement',
@@ -110,9 +102,11 @@ use Pi;
  *      )
  *  );
  * </code>
- * Only with configs
+ *
+ * - Only with configs
+ *
  * <code>
- *  return array(
+ *  array(
  *          'config_name'   => array(
  *              'title'         => 'Config title',
  *              'category'      => '',
@@ -122,12 +116,23 @@ use Pi;
  *          ...
  *  );
  * </code>
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
  */
-
 class Config extends AbstractResource
 {
+    /**
+     * Default category name
+     * @var string
+     */
     const DEFAULT_CATEGORY = 'general';
 
+    /**
+     * Canonize config category and item list data
+     *
+     * @param array $config
+     * @return array
+     */
     protected function canonize($config)
     {
         $ret = array();
@@ -139,8 +144,10 @@ class Config extends AbstractResource
             );
         } else {
             $ret = array(
-                'category'  => isset($config['category']) ? $config['category'] : array(),
-                'item'      => isset($config['item']) ? $config['item'] : array()
+                'category'  => isset($config['category'])
+                                ? $config['category'] : array(),
+                'item'      => isset($config['item'])
+                                ? $config['item'] : array()
             );
         }
 
@@ -161,6 +168,12 @@ class Config extends AbstractResource
         return $ret;
     }
 
+    /**
+     * Canonize a config
+     *
+     * @param array $config
+     * @return array
+     */
     protected function canonizeConfig($config)
     {
         $module = $this->event->getParam('module');
@@ -177,13 +190,16 @@ class Config extends AbstractResource
         return $config;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function installAction()
     {
         if (empty($this->config)) {
             return;
         }
         $module = $this->event->getParam('module');
-        Pi::service('registry')->config->clear($module);
+        Pi::registry('config')->clear($module);
 
         $config = $this->canonize($this->config);
         if (!empty($config['category'])) {
@@ -200,7 +216,10 @@ class Config extends AbstractResource
                 if (!$status) {
                     return array(
                         'status'    => false,
-                        'message'   => sprintf('Category "%s" is not created.', $category['name'])
+                        'message'   => sprintf(
+                            'Category "%s" is not created.',
+                             $category['name']
+                        )
                     );
                 }
             };
@@ -220,7 +239,10 @@ class Config extends AbstractResource
             if (!$status) {
                 return array(
                     'status'    => false,
-                    'message'   => sprintf('Config "%s" is not created.', $item['name']),
+                    'message'   => sprintf(
+                        'Config "%s" is not created.',
+                        $item['name']
+                    ),
                 );
             }
         }
@@ -228,10 +250,13 @@ class Config extends AbstractResource
         return true;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function updateAction()
     {
         $module = $this->event->getParam('module');
-        Pi::service('registry')->config->clear($module);
+        Pi::registry('config')->clear($module);
 
         if ($this->skipUpgrade()) {
             return;
@@ -255,7 +280,10 @@ class Config extends AbstractResource
                 if (!$status) {
                     return array(
                         'status'    => false,
-                        'message'   => sprintf('Category "%s" is not deleted.', $row->name)
+                        'message'   => sprintf(
+                            'Category "%s" is not deleted.',
+                            $row->name
+                        )
                     );
                 }
             } else {
@@ -275,9 +303,10 @@ class Config extends AbstractResource
                 if (!empty($isChanged)) {
                     $status = $row->save();
                     if (!$status) {
+                        $msg = 'Category "%s" is not updated.';
                         return array(
                             'status'    => false,
-                            'message'   => sprintf('Category "%s" is not updated.', $row->name)
+                            'message'   => sprintf($msg, $row->name),
                         );
                     }
                 }
@@ -292,7 +321,10 @@ class Config extends AbstractResource
             if (!$status) {
                 return array(
                     'status'    => false,
-                    'message'   => sprintf('Category "%s" is not created.', $category['name'])
+                    'message'   => sprintf(
+                        'Category "%s" is not created.',
+                        $category['name']
+                    )
                 );
             }
         }
@@ -321,7 +353,10 @@ class Config extends AbstractResource
             if (!$status) {
                 return array(
                     'status'    => false,
-                    'message'   => sprintf('Config "%s" is failed to delete.', $row->name)
+                    'message'   => sprintf(
+                        'Config "%s" is failed to delete.',
+                        $row->name
+                    )
                 );
             }
         }
@@ -331,7 +366,10 @@ class Config extends AbstractResource
             if (!$status) {
                 return array(
                     'status'    => false,
-                    'message'   => sprintf('Config "%s" is not created.', $config['name']),
+                    'message'   => sprintf(
+                        'Config "%s" is not created.',
+                        $config['name']
+                    ),
                 );
             }
         }
@@ -339,15 +377,19 @@ class Config extends AbstractResource
         return true;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function uninstallAction()
     {
         $module = $this->event->getParam('module');
-        Pi::service('registry')->config->clear($module);
+        Pi::registry('config')->clear($module);
 
         $modelCategory = Pi::model('config_category');
         $modelConfig = Pi::model('config');
         $modelCategory->delete(array('module' => $module));
         $modelConfig->delete(array('module' => $module));
+
         return true;
     }
 }

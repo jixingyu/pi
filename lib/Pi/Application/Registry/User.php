@@ -1,49 +1,51 @@
 <?php
 /**
- * Pi user meta registry
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * Different actions -
- *
- * For edit:
- *  null method - use default form element 'Text'
- *  empty method - hide the element
- *  method is string - use system form element
- *  method is array([module], element, [options]) - use module form element
- *
- * For admin:
- *  null method - inherite from edit
- *  otherwise - same mehtods as edit
- *
- * For view:
- *  null method - use raw data
- *  empty method - hide the data
- *  method is array(module, element) - transform raw data via the module_profile::method
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Pi\Application
- * @subpackage      Registry
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
+ * @package         Registry
  */
 
 namespace Pi\Application\Registry;
+
 use Pi;
 
+/**
+ * Pi user meta registry
+ *
+ * Different operations
+ *
+ * For edit:
+ *
+ *  - null method: use default form element 'Text'
+ *  - empty method: hide the element
+ *  - method is string: use system form element
+ *  - method is array (<module>, <element>, <options>): use module form element
+ *
+ * For admin:
+ *
+ *  - null method: inherite from edit
+ *  - otherwise: same mehtods as edit
+ *
+ * For view:
+ *
+ *  - null method: use raw data
+ *  - empty method: hide the data
+ *  - method is array(<module>, <element>):
+ *      transform raw data via Module\Profile::method
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 class User extends AbstractRegistry
 {
+    /**
+     * {@inheritDoc}
+     */
     protected function loadDynamic($options = array())
     {
-        $parseView = function ($row)
-        {
+        $parseView = function ($row) {
             $view = array();
             if (!empty($row->view)) {
                 $view['method'] = array($row->module . '_profile', $row->view);
@@ -54,8 +56,7 @@ class User extends AbstractRegistry
             return $view;
         };
 
-        $parseEdit = function ($row, $action)
-        {
+        $parseEdit = function ($row, $action) {
             if ($action == 'admin') {
                 $input = is_null($row->admin) ? $row->edit : $row->admin;
             } else {
@@ -68,7 +69,8 @@ class User extends AbstractRegistry
                 }
                 if (empty($input['options']['multiOptions'])) {
                     if (!empty($row->options)) {
-                        $input['options']['multiOptions'] = unserialize($row->options);
+                        $input['options']['multiOptions'] =
+                            unserialize($row->options);
                     }
                 }
                 if (!empty($input['module'])) {
@@ -85,8 +87,7 @@ class User extends AbstractRegistry
             return $input;
         };
 
-        $parseSearch = function ($row)
-        {
+        $parseSearch = function ($row) {
             if (!is_null($row->search)) {
                 $input = $row->search;
             } elseif (!empty($row->edit)) {
@@ -101,7 +102,8 @@ class User extends AbstractRegistry
                 }
                 if (empty($input['options']['multiOptions'])) {
                     if (!empty($row->options)) {
-                        $input['options']['multiOptions'] = unserialize($row->options);
+                        $input['options']['multiOptions'] =
+                            unserialize($row->options);
                     }
                 }
                 if (!empty($input['module'])) {
@@ -116,7 +118,8 @@ class User extends AbstractRegistry
         };
 
         $model = Pi::model('user_meta');
-        $select = $model->select()->where(array('active' => 1))->order('id ASC');
+        $select = $model->select()->where(array('active' => 1))
+            ->order('id ASC');
         $rowset = $model->selectWith($select);
         $data = array();
         foreach ($rowset as $row) {
@@ -146,9 +149,15 @@ class User extends AbstractRegistry
             }
             $data[$row->key]['title'] = $row->title;
         }
+
         return $data;
     }
 
+    /**
+     * {@inheritDoc}
+     * @param string $action
+     * @param string|null $meta
+     */
     public function read($action = 'view', $meta = null)
     {
         $options = compact('action');
@@ -162,19 +171,29 @@ class User extends AbstractRegistry
         return $result;
     }
 
+    /**
+     * {@inheritDoc}
+     * @param string $action
+     */
     public function create($action = 'view')
     {
         $this->clear('');
         $this->read($action);
+
         return true;
     }
 
-    public function setNamespace($meta)
+    /**
+     * {@inheritDoc}
+     */
+    public function setNamespace($meta = '')
     {
         return parent::setNamespace('');
     }
 
-
+    /**
+     * {@inheritDoc}
+     */
     public function flush()
     {
         return $this->clear('');

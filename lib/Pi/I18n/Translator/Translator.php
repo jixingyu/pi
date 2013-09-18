@@ -1,20 +1,10 @@
 <?php
 /**
- * Pi Engine translator
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @package         Pi\I18n
- * @since           3.0
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Pi\I18n\Translator;
@@ -24,43 +14,45 @@ use Zend\I18n\Translator\Translator as ZendTranslator;
 use Zend\I18n\Translator\Loader\FileLoaderInterface;
 use Zend\I18n\Translator\TextDomain;
 
+/**
+ * Translator handler
+ *
+ * {@inheritDoc}
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 class Translator extends ZendTranslator
 {
+    /** @var string Default locale */
     const DEFAULT_LOCALE = 'en';
 
     /**
-     * Previous locale.
-     *
+     * Previous set locale, for restore
      * @var string
      */
     protected $previousLocale;
 
     /**
      * Text domain
-     *
      * @var string
      */
     protected $textDomain = 'default';
 
     /**
-     * Previous text domain
-     *
+     * Previous text domain, for restore
      * @var string
      */
     protected $previousTextDomain = 'default';
 
     /**
      * Resource loader
-     *
      * @var FileLoaderInterface
      */
     protected $loader;
 
     /**
-     * Set the default locale.
+     * Set locale
      *
-     * @param  string $locale
-     * @return Translator
+     * {@inheritDoc}
      */
     public function setLocale($locale)
     {
@@ -68,13 +60,14 @@ class Translator extends ZendTranslator
             $this->previousLocale = $this->locale;
             $this->locale = $locale;
         }
+
         return $this;
     }
 
     /**
-     * Get the default locale.
+     * Get locale
      *
-     * @return string
+     * {@inheritDoc}
      */
     public function getLocale()
     {
@@ -86,9 +79,7 @@ class Translator extends ZendTranslator
     }
 
     /**
-     * Get the fallback locale.
-     *
-     * @return string
+     * {@inheritDoc}
      */
     public function getFallbackLocale()
     {
@@ -102,26 +93,28 @@ class Translator extends ZendTranslator
     /**
      * Restore the default locale.
      *
-     * @return Translator
+     * @return self
      */
     public function restoreLocale()
     {
         $this->locale = $this->previousLocale ?: $this->locale;
+
         return $this;
     }
 
     /**
-     * Set the text doamin
+     * Set the text domain
      *
-     * @param  string $textDoamin
-     * @return Translator
+     * @param  string $textDomain
+     * @return self
      */
     public function setTextDomain($textDomain)
     {
         if ($textDomain != $this->textDomain) {
-            $this->previoustextDomain = $this->textDomain;
+            $this->previousTextDomain = $this->textDomain;
             $this->textDomain = $textDomain;
         }
+
         return $this;
     }
 
@@ -138,42 +131,45 @@ class Translator extends ZendTranslator
     /**
      * Restore the text domain
      *
-     * @return Translator
+     * @return self
      */
     public function restoreTextDomain()
     {
-        $this->textDomain = $this->previoustextDomain;
+        $this->textDomain = $this->previousTextDomain;
+
         return $this;
     }
 
     /**
-     * Restore text domain and locale
+     * Restore text domain and locale to previous one
      *
-     * @return Translator
+     * @return self
      */
     public function restore()
     {
         $this->locale = $this->previousLocale ?: $this->locale;
-        $this->textDomain = $this->previoustextDomain;
+        $this->textDomain = $this->previousTextDomain;
+
         return $this;
     }
 
     /**
      * Set resource loader
      *
-     * @param LoaderInterface $loader
-     * @return Translator
+     * @param FileLoaderInterface $loader
+     * @return self
      */
     public function setLoader($loader)
     {
         $this->loader = $loader;
+
         return $this;
     }
 
     /**
      * Get resource loader
      *
-     * @return LoaderInterface
+     * @return FileLoaderInterface
      */
     public function getLoader()
     {
@@ -181,12 +177,9 @@ class Translator extends ZendTranslator
     }
 
     /**
-     * Translate a message.
+     * Translate a message with specific domain and locale
      *
-     * @param  string $message
-     * @param  string|null $textDomain
-     * @param  string|null $locale
-     * @return string
+     * {@inheritDoc}
      */
     public function translate($message, $textDomain = null, $locale = null)
     {
@@ -194,18 +187,12 @@ class Translator extends ZendTranslator
             $textDomain = $this->getTextDomain();
         }
         //d($textDomain);
+
         return parent::translate($message, $textDomain, $locale);
     }
 
     /**
-     * Translate a plural message.
-     *
-     * @param  string      $singular
-     * @param  string      $plural
-     * @param  int         $number
-     * @param  string|null $textDomain
-     * @param  string|null $locale
-     * @return string
+     * {@inheritDoc}
      */
     public function translatePlural(
         $singular,
@@ -217,16 +204,18 @@ class Translator extends ZendTranslator
         if (!$textDomain) {
             $textDomain = $this->getTextDomain();
         }
-        return parent::translatePlural($singular, $plural, $number, $textDomain, $locale);
+
+        return parent::translatePlural(
+            $singular,
+            $plural,
+            $number,
+            $textDomain,
+            $locale
+        );
     }
 
     /**
-     * Get a translated message.
-     *
-     * @param  string      $message
-     * @param  string      $locale
-     * @param  string      $textDomain
-     * @return string|null
+     * {@inheritDoc}
      */
     protected function getTranslatedMessage(
         $message,
@@ -259,43 +248,68 @@ class Translator extends ZendTranslator
      *
      * @param array|string $domain
      * @param string|null $locale
-     * @return Translator
+     * @return bool
      */
     public function load($domain, $locale = null)
     {
         // Array of ($textDomain, $file)
-        $domain = is_array($domain) ? $domain : Pi::service('i18n')->normalizeDomain($domain);
+        $domain = is_array($domain)
+            ? $domain : Pi::service('i18n')->normalizeDomain($domain);
         $this->setTextDomain($domain[0]);
         $this->setLocale($locale);
 
-        $messages = Pi::service('registry')->i18n->setGenerator(array($this, 'loadResource'))->read($domain, $this->locale);
-        $this->messages[$this->textDomain][$this->locale] = new TextDomain($messages);
+        $messages = (array) Pi::registry('i18n')
+            ->setGenerator(array($this, 'loadResource'))
+            ->read($domain, $this->locale);
+        $this->messages[$this->textDomain][$this->locale] =
+            new TextDomain($messages);
         //$this->messages[$this->textDomain][$this->locale] = $messages;
         if ($this->textDomain && $messages) {
             if (!empty($this->messages[''][$this->locale])) {
                 foreach ($messages as $key => $val) {
                     $this->messages[''][$this->locale]->offsetSet($key, $val);
                 }
-                //$this->messages[''][$this->locale]->append($messages);
-                //$this->messages[''][$this->locale]->append($messages->getArrayCopy());
             } else {
                 $this->messages[''][$this->locale] = new TextDomain($messages);
-                //$this->messages[''][$this->locale] = $messages;
             }
         }
-        return $this;
+
+        return $messages ? true : false;
     }
 
     /**
      * Load translation resource
      *
      * @param array $options
-     * @return TextDomain
+     * @return array
+     * @see Pi\Application\Registry\I18n
      */
     public function loadResource($options)
     {
-        $filename = Pi::service('i18n')->getPath(array($options['domain'], $options['file']), $options['locale']);
+        $filename = Pi::service('i18n')->getPath(
+            array($options['domain'],
+            $options['file']),
+            $options['locale']
+        );
+        try {
+            $result = $this->loader->load($options['locale'], $filename);
+        } catch (\Exception $e) {
+            $result = false;
+        }
+        if (false === $result) {
+            if (Pi::service()->hasService('log')) {
+                Pi::service()->getService('log')->info(sprintf(
+                    'Translation "%s-%s.%s" load failed.',
+                    $options['domain'],
+                    $options['file'],
+                    $options['locale']
+                ));
+            }
+            $result = array();
+        } else {
+            $result = (array) $result;
+        }
 
-        return $this->loader->load($options['locale'], $filename);
+        return $result;
     }
 }

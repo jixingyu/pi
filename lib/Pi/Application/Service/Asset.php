@@ -1,97 +1,83 @@
 <?php
 /**
- * Asset service
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @package         Pi\Application
- * @subpackage      Service
- * @since           3.0
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
+ * @package         Service
  */
 
 namespace Pi\Application\Service;
+
 use Pi;
 
 /**
  * Asset maintenance service
- * @see \Pi\View\Resolver\ModuleTemplate for module template skeleton
- * @see \Pi\View\Resolver\ThemeTemplate for theme template skeleton
- * @see \Pi\View\Resolver\ComponentTemplate for component template skeleton
  *
  * Module asset folders/files skeleton
- * <ul>
- *  <li>
- *      <ul>Source assts
- *          <li>
- *              <ul>Module native assets:
- *                  <li>for both module "demo" and cloned "democlone"
- *                      <code>module/demo/asset/</code>
- *                  </li>
- *              </ul>
- *          </li>
- *          <li>
- *              <ul>Module custom assets: (Note: the custom relationship is not maintained by the Asset service, it shall be addressed by module maintainer instead.)
- *                  <li>for module "demo"
- *                      <code>theme/default/module/demo/asset/</code>
- *                  </li>
- *                  <li>for module "democlone"
- *                      <code>theme/default/module/democlone/asset/</code>
- *                  </li>
- *          </li>
- *      </ul>
- *  </li>
- *  <li>Published assts
- *      <code>www/asset/[encrypted "module/demo"]/</code>
- *      <code>www/asset/[encrypted "module/democlone"]/</code>
- *  </li>
- * </ul>
+ *
+ * - Source assts
+ *   - Module native assets:
+ *     - for both module "demo" and cloned "democlone":
+ *      `module/demo/asset/`</li>
+ *   - Module custom assets:
+ *      (Note: the custom relationship is not maintained by the Asset service,
+ *          it shall be addressed by module maintainer instead.)
+ *     - for module "demo": `theme/default/module/demo/asset/`</li>
+ *     - for module "democlone": `theme/default/module/democlone/asset/`
+ *
+ * - Published assts
+ *   - for module "demo": `www/asset/[encrypted "module/demo"]/`
+ *   - for module "democlone":  `www/asset/[encrypted "module/democlone"]/`
  *
  * Theme asset folders files skeleton
- * <ul>
- *  <li>Source assets
- *      <code>theme/default/asset/</code>
- *  </li>
- *  <li>Published assets
- *      <code>www/asset/[encrypted "theme/default"]/</code>
- *  </li>
- * </ul>
  *
- * MISC asset folders files skeleton
- * <ul>
- *  <li>Source assets
- *      <code>path/to/component/asset/</code>
- *  </li>
- *  <li>Published assets
- *      <code>www/asset/[encrypted "path/to/component"]/</code>
- *  </li>
- * </ul>
+ * - Source assets
+ *   - `theme/default/asset/`
+ *
+ * - Published assets
+ *   - `www/asset/<encrypted "theme/default">/`
+ *
+ * Other component asset folders files skeleton
+ *
+ * - Source assets
+ *   - `path/to/component/asset/`
+ *
+ * - Published assets
+ *   - `www/asset/<encrypted "path/to/component">/`
+ *
+ * @see Pi\View\Resolver\ModuleTemplate for module template skeleton
+ * @see Pi\View\Resolver\ThemeTemplate for theme template skeleton
+ * @see Pi\View\Resolver\ComponentTemplate for component template skeleton
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
  */
 class Asset extends AbstractService
 {
     /**
      * Specified name for assets root folder of all components
+     *
+     * @var string
      */
     const DIR_ASSET = 'asset';
 
     /**
      * Root path of assets folder
+     *
+     * @var string
      */
     protected $basePath;
 
     /**
-     * URI to assets root
+     * URI to assets root directory
+     *
+     * @var string
      */
     protected $baseUrl;
 
+    /**
+     * {@inheritDoc}
+     */
     public function __construct(array $options = array())
     {
         parent::__construct($options);
@@ -103,6 +89,8 @@ class Asset extends AbstractService
 
     /**
      * Get path to assets root folder
+     *
+     * @return string
      */
     public function getBasePath()
     {
@@ -115,6 +103,8 @@ class Asset extends AbstractService
 
     /**
      * Get path to assets root folder
+     *
+     * @return string
      */
     public function getBaseUrl()
     {
@@ -128,14 +118,14 @@ class Asset extends AbstractService
     /**
      * Generates a canonical folder for component folder
      *
-     * sha1 or md5 is good for lower collisions but crc32 is good as a trade-off between collisions and hash length
+     * sha1 or md5 is good for lower collisions
+     * but crc32 is good as a trade-off between collisions and hash length
      *
-     * @param string $path folder name to be hashed
-     * @return string hashed string
+     * @param string $path Folder name to be hashed
+     * @return string
      */
     protected function canonize($path)
     {
-        //return sprintf('%x', crc32($path));
         return preg_replace('/[^a-z0-9\-]/i', '-', $path);
     }
 
@@ -152,6 +142,7 @@ class Asset extends AbstractService
         if ($version) {
             $url .= '?' . $version;
         }
+
         return $url;
     }
 
@@ -163,7 +154,8 @@ class Asset extends AbstractService
      */
     public function getPath($component)
     {
-        return $this->getBasePath() . DIRECTORY_SEPARATOR . $this->canonize($component);
+        return $this->getBasePath() . DIRECTORY_SEPARATOR
+            . $this->canonize($component);
     }
 
     /**
@@ -200,8 +192,12 @@ class Asset extends AbstractService
     public function getAssetUrl($component, $file, $versioning = true)
     {
         if ($versioning) {
-            $file = $this->versionStamp($this->getAssetPath($component, $file), $file);
+            $file = $this->versionStamp(
+                $this->getAssetPath($component, $file),
+                $file
+            );
         }
+
         return $this->getUrl($component) . '/' . $file;
     }
 
@@ -217,6 +213,7 @@ class Asset extends AbstractService
     {
         $module = $module ?: Pi::service('module')->current();
         $component = 'module/' . $module;
+
         return $this->getAssetUrl($component, $file, $versioning);
     }
 
@@ -232,6 +229,7 @@ class Asset extends AbstractService
     {
         $theme = $theme ?: Pi::service('theme')->current();
         $component = 'theme/' . $theme;
+
         return $this->getAssetUrl($component, $file, $versioning);
     }
 
@@ -249,6 +247,7 @@ class Asset extends AbstractService
         $file = $module . '/' . $file;
         $theme = Pi::service('theme')->current();
         $component = 'custom/' . $theme;
+
         return $this->getAssetUrl($component, $file, $versioning);
     }
 
@@ -261,10 +260,12 @@ class Asset extends AbstractService
      */
     public function getSourcePath($component, $file = '')
     {
-        $sourcePath = Pi::path($component) . DIRECTORY_SEPARATOR . static::DIR_ASSET;
+        $sourcePath = Pi::path($component) . DIRECTORY_SEPARATOR
+                    . static::DIR_ASSET;
         if (!empty($file)) {
             $sourcePath .= DIRECTORY_SEPARATOR . $file;
         }
+
         return $sourcePath;
     }
 
@@ -276,13 +277,18 @@ class Asset extends AbstractService
      *
      * @param string    $sourceFile Source file
      * @param string    $targetFile Destination
-     * @param boolean   $override Force to override existent files
-     * @return boolean
+     * @param bool      $override Force to override existent files
+     * @return bool
      */
     public function publishFile($sourceFile, $targetFile, $override = true)
     {
         try {
-            Pi::service('file')->symlink($sourceFile, $targetFile, true, $override);
+            Pi::service('file')->symlink(
+                $sourceFile,
+                $targetFile,
+                true,
+                $override
+            );
             $status = true;
         } catch (\Exception $e) {
             $status = false;
@@ -292,27 +298,31 @@ class Asset extends AbstractService
     }
 
     /**
-     * Publishes an asset of a component, only applicable for direct copy not for symbolic link
+     * Publishes an asset of a component,
+     * only applicable for direct copy not for symbolic link
      *
      * @param string    $component component name
      * @param string    $file      file path
-     * @param boolean   $override Force to override existent files
-     * @return boolean
+     * @param bool      $override Force to override existent files
+     * @return bool
      */
     public function publishAsset($component, $file, $override = true)
     {
         $sourceFile = $this->getSourcePath($component, $file);
         $targetFile = $this->getAssetPath($component, $file);
+
         return $this->publishFile($sourceFile, $targetFile, $override);
     }
 
     /**
      * Publishes component assets folder
      *
-     * @param string $component component name
-     * @param string $target target component
-     * @param boolean $override Force to override existent folder: true to remove existent folder/link and to recreate it; false to overwrite file by file
-     * @return boolean
+     * @param string    $component component name
+     * @param string    $target target component
+     * @param bool      $override Force to override existent folder:
+     *  true to remove existent folder/link and to recreate it;
+     *  false to overwrite file by file
+     * @return bool
      */
     public function publish($component, $target = '', $override = true)
     {
@@ -322,6 +332,7 @@ class Asset extends AbstractService
         if (!is_dir($sourceFolder) && !is_link($sourceFolder)) {
             return true;
         }
+
         return $this->publishFile($sourceFolder, $targetFolder, $override);
     }
 
@@ -329,17 +340,19 @@ class Asset extends AbstractService
      * Publishes custom assets in a theme
      *
      * @param string $theme
-     * @return boolean
+     * @return bool
      */
     public function publishCustom($theme)
     {
         $path = Pi::path('theme') . '/' . $theme . '/module';
         if (!is_dir($path)) {
-            return;
+            return false;
         }
         $iterator = new \DirectoryIterator($path);
         foreach ($iterator as $fileinfo) {
-            if (!$fileinfo->isDir() && !$fileinfo->isLink() || $fileinfo->isDot()) {
+            if (!$fileinfo->isDir() && !$fileinfo->isLink()
+                || $fileinfo->isDot()
+            ) {
                 continue;
             }
             $module = $fileinfo->getFilename();
@@ -353,13 +366,14 @@ class Asset extends AbstractService
             $targetPath = $this->getPath('custom/' . $theme) . '/' . $module;
             $this->publishFile($sourcePath, $targetPath);
         }
+
         return true;
     }
 
     /**
      * Remove custom assets in a theme
      * @param string $theme
-     * @return boolean
+     * @return bool
      */
     public function removeCustom($theme)
     {
@@ -369,8 +383,8 @@ class Asset extends AbstractService
     /**
      * Remove component assets folder
      *
-     * @param string $component component name
-     * @return boolean
+     * @param string $component Component name
+     * @return bool
      */
     public function remove($component)
     {
@@ -393,7 +407,7 @@ class Asset extends AbstractService
     /**
      * Gets path of a static asset
      *
-     * @param string $file      file path
+     * @param string $file      File path
      * @return string Full path to a static asset
      */
     public function getStaticPath($file)
@@ -404,7 +418,7 @@ class Asset extends AbstractService
     /**
      * Gets URL of a static asset
      *
-     * @param string    $file       file path
+     * @param string    $file       File path
      * @param bool      $versioning Flag to append version
      * @return string Full URL to the asset
      */
@@ -413,6 +427,7 @@ class Asset extends AbstractService
         if ($versioning) {
             $file = $this->versionStamp($this->getStaticPath($file), $file);
         }
+
         return Pi::url('static') . '/' . $file;
     }
 }

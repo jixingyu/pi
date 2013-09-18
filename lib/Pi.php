@@ -1,154 +1,143 @@
 <?php
 /**
- * Pi Kernel Engine
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Pi
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
+
+use Pi\Application\Host;
+use Pi\Application\Persist;
+use Pi\Application\Autoloader;
+use Pi\Application\Engine\AbstractEngine;
+use Pi\Application\Service;
+use Pi\Application\Service\AbstractService;
+use Pi\Application\Config;
+use Pi\Application\Db;
+use Pi\Debug\Debug;
+use Pi\Utility\Filter;
+use Pi\Application\Service\User;
+use Pi\Application\Model\Model;
+use Pi\Application\Registry\AbstractRegistry;
+use Pi\Application\AbstractApi;
 
 /**
  * Pi Engine
  *
- * Plays the role as system bootstrap and global interfaces to applications and modules
+ * System bootstrap and global interfaces to applications and modules
  *
  * Boot up process:
- * init: instantiate and initialize gobal APIs
- *  - host()
- *  - config()
- *  - persist()
- *  - autoloader()
- *  - engine()
- *  - register self::shutdown()
- * boot: boot up engine
- *  - engine->config()
- *  - engine->bootstrap()
- *  - engine->application()
- * bootstrap: boostap application
- *  - bootstrap(application)
- * run: run application and returns response
- *  - run(): route, dispatch
- * send response
- *  - send()
+ *
+ * - init: instantiate and initialize global APIs
+ *
+ *   - host()
+ *   - config()
+ *   - persist()
+ *   - autoloader()
+ *   - engine()
+ *   - register self::shutdown()
+ *
+ * - boot: boot up engine
+ *
+ *   - config()
+ *   - boot()
  *
  * Global APIs:
- *  - host()
- *  - config()
- *  - persist()
- *  - autoloader()
- *  - engine()
- *  - service()
- *  - model()
- *  - registerShutdown()
- *  - registry()
- *  - path()
- *  - url()
  *
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ *  - autoloader()
+ *  - config()
+ *  - db()
+ *  - engine()
+ *  - host()
+ *  - model()
+ *  - path()
+ *  - persist()
+ *  - registerShutdown()
+ *  - entity()
+ *  - service()
+ *  - url()
+ *  - user()
+ *  - registry()
+ *  - api()
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
  */
 class Pi
 {
     /**
-     * @var string
-     * @see http://semver.org/ for semantic versioning
-     */
-    const VERSION = '3.0.0-beta.1';
-
-    /**
      * Default application engine
      * @var string
-     * @access public
      */
     const DEFAULT_APPLICATION_ENGINE = 'standard';
 
     /**
      * Default application environment
      * @var string
-     * @access public
      */
     const DEFAULT_APPLICATION_ENV = 'production';
 
     /**
      * Path to library root
      * @var string
-     * @access public
      */
     const PATH_LIB = PI_PATH_LIB;
 
     /**
      * Reference to application host
-     * @var {@Pi\Application\Host}
-     * @access protected
+     * @var Host
      */
     protected static $host = null;
 
     /**
      * Reference to persist handler
-     * @var {@Pi\Application\Persist}
-     * @access protected
+     * @var Persist
      */
     protected static $persist = null;
 
     /**
      * Reference to autoloader handler
-     * @var {@Pi\Application\Autoloader}
-     * @access protected
+     * @var Autoloader
      */
     protected static $autoloader = null;
 
     /**
      * Reference to application engine
-     * @var array of {@Pi\Application\Engine}
-     * @access protected
+     * @var AbstractEngine
      */
     protected static $engine = null;
 
     /**
      * Reference to service handler
-     * @var {@Pi\Application\Service}
-     * @access protected
+     * @var Service
      */
     protected static $service = null;
 
     /**
      * Reference to config handler
-     * @var {@Pi\Application\Config}
-     * @access protected
+     * @var Config
      */
     protected static $config = null;
 
     /**
      * Reference to Db handler
-     * @var {@Pi\Application\Db}
-     * @access protected
+     * @var Db
      */
     protected static $db = null;
 
     /**
-     * Registry container
+     * Entity container
      * @var array
-     * @access protected
      */
-    protected static $registry = array();
+    protected static $entity = array();
 
     /**
      * Shutdown callback container
      * @var array
-     * @access protected
      */
     protected static $shutdown = array();
 
-    /*
+    /**
      * Start time
      * @var float
      */
@@ -157,7 +146,6 @@ class Pi
     /**
      * Run environment
      * @var string
-     * @access protected
      */
     protected static $environment = null;
 
@@ -165,25 +153,19 @@ class Pi
      * Initialize system environment and APIs
      *
      * Tasks:
-     *  1. instantiate host handler and load host data
-     *  2. load engine general config data which applicable to all applications
-     *  3. instantiate persist handler with persist config data from general config
-     *  4. instantiate autoloader handler and load system autoloader with autoloader config data from general config
-     *  5. instantiate application engine with application config data from general config
+     *
+     *  1. Instantiate host handler and load host data
+     *  2. Load engine general config data which applicable to all applications
+     *  3. Load persist handler with persist config data from general config
+     *  4. Instantiate autoloader with config data from general config
+     *  5. Instantiate application engine with application config data
      */
     public static function init()
     {
-        // Set default timezone if not available in php.ini
-        if (!ini_get('date.timezone')) {
-            date_default_timezone_set('UTC');
-        }
-
         // Set start time
         static::$start = microtime(true);
 
-        /**#@+
-         * Initialize Host
-         */
+        // Initialize Host
         $config = array(
             'host'  => array(
                 'path'  => array(
@@ -195,55 +177,52 @@ class Pi
             $config['file'] = constant('PI_PATH_HOST');
         }
         static::host($config);
-        /**#@-*/
 
-        /**#@+
-         * Register autoloader, host and persist handler required,use autoloader config data from general config
-         */
+        // Register autoloader, host, persist and autoloader
         $paths = static::host()->get('path');
         $options = array(
             // Top namespaces
-            'top'       => array(
-                'Pi' => static::path('lib') . '/Pi',
+            'top'           => array(
+                'Pi'    => static::path('lib') . '/Pi',
                 'Zend'  => static::path('lib') . '/Zend',
             ),
             // Regular namespaces
-            'namespace' => array(
+            'namespace'     => array(
             ),
             // Class map
-            'classmap'  => array(
+            'class_map'     => array(
             ),
             // Directory of modules
-            'modulepath'    => static::path('module'),
+            'module_path'   => static::path('module'),
+            // Directory of extras
+            'extra_path'    => !empty($paths['extra'])
+                               ? $paths['extra']
+                               : static::path('usr') . '/extra',
             // Vendor directory
-            'includepath'   => !empty($paths['vendor']) ? $paths['vendor'] : static::path('lib') . '/vendor',
+            'include_path'  => !empty($paths['vendor'])
+                               ? $paths['vendor']
+                               : static::path('lib') . '/vendor',
         );
         static::autoloader($options);
-        /**#@-*/
 
         // Load debugger and filter
-        Pi\Debug\Debug::load();
-        Pi\Utility\Filter::load();
+        Debug::load();
+        Filter::load();
 
-        /**#@+
-         * Load engine global config
-         */
+        // Load engine global config
         $engineConfig = static::config()->load('engine.php');
         if (isset($engineConfig['config'])) {
             static::config()->setConfigs($engineConfig['config']);
         }
-        /**#@-*/
 
-        /**#@+
-         * Initialize Persist handler
-         */
-        $persistConfig = empty($engineConfig['persist']) ? array() : $engineConfig['persist'];
+        // Initialize Persist handler
+        $persistConfig = empty($engineConfig['persist'])
+                         ? array() : $engineConfig['persist'];
         static::persist($persistConfig);
         // Set persist handler for class/file map
         if (static::persist()->isValid()) {
             static::autoloader()->setPersist(static::persist());
         }
-        /*#@-*/
 
         // Register shutdown functions
         register_shutdown_function(__CLASS__ . '::shutdown');
@@ -253,13 +232,17 @@ class Pi
      * Verify application environment
      *
      * Priority of different entries
-     *  1. Specified in file via define('APPLICATION_ENV', 'somevalue');
-     *  2. Specified value via Pi::environment('somevalue');
-     *  3. Specified via getenv('APPLICATION_ENV') - usually set in .htaccess via "SetEnv APPLICATION_ENV production";
-     *  4. Set from system config via Pi::config('environment') set in var/config/engine.php.
+     *
+     *  1. Load specified in file via `define('APPLICATION_ENV', <evn-value>)`;
+     *  2. Load specified value via `Pi::environment('<env-value>')`;
+     *  3. Load via `getenv('APPLICATION_ENV')`
+     *      - set in `.htaccess` via `SetEnv APPLICATION_ENV <env-value>`;
+     *  4. Load from system config via `Pi::config('environment')`
+     *      - set in `var/config/engine.php`.
      *
      * @param string|null $environment
-     * @return null:string
+     * @return null|string
+     * @api
      */
     public static function environment($environment = null)
     {
@@ -278,6 +261,7 @@ class Pi
         } elseif (static::config('environment')) {
             $result = static::config('environment');
         }
+
         return $result;
     }
 
@@ -295,6 +279,7 @@ class Pi
      * Perform the boot sequence
      *
      * The following operations are done in order during the boot-sequence:
+     *
      * - Load system bootstrap preferences
      * - Load primary services
      * - Application bootstrap
@@ -305,7 +290,7 @@ class Pi
     {
         // Instantiate the application engine
         $engine = static::engine();
-        // Performe application boot
+        // Perform application boot
         $status = $engine->run();
         // Skip registered shutdown on failure
         if (false === $status) {
@@ -316,7 +301,6 @@ class Pi
     /**
      * Perform registered shutdown sequence
      *
-     * @access public
      * @return bool
      */
     public static function shutdown()
@@ -326,53 +310,57 @@ class Pi
         }
     }
 
-    /**#@+
-     * System API
-     */
     /**
      * Instantiate application host
      *
-     * @param string|array  $config Host file path or array of configuration data
-     * @return {@Pi\Application\Host}
+     * @param string|array $config Host file path or array of config data
+     * @return Host
+     * @api
      */
     public static function host($config = null)
     {
         if (!isset(static::$host)) {
-            if (!class_exists('Pi\\Application\\Host', false)) {
+            if (!class_exists('Pi\Application\Host', false)) {
                 require static::PATH_LIB . '/Pi/Application/Host.php';
             }
-            static::$host = new Pi\Application\Host($config);
+            static::$host = new Host($config);
         }
+
         return static::$host;
     }
 
     /**
      * Loads persistent data handler
      *
-     * @param array     $config    Config for the persist handler
-     * @return {@Pi\Application\Persist\PersistInterface}
+     * @param array $config Config for the persist handler
+     * @return Persist
+     * @api
      */
     public static function persist($config = array())
     {
         if (!isset(static::$persist)) {
-            static::$persist = new Pi\Application\Persist($config);
+            static::$persist = new Persist($config);
         }
+
         return static::$persist;
     }
 
     /**
      * Loads autoloader handler
      *
-     * @return Pi\Application\Autoloader
+     * @param array $options
+     *
+     * @return  Autoloader
      */
     public static function autoloader($options = array())
     {
         if (!isset(static::$autoloader)) {
-            if (!class_exists('Pi\\Application\\Autoloader', false)) {
+            if (!class_exists('Pi\Application\Autoloader', false)) {
                 require static::PATH_LIB . '/Pi/Application/Autoloader.php';
             }
-            static::$autoloader = new Pi\Application\Autoloader($options);
+            static::$autoloader = new Autoloader($options);
         }
+
         return static::$autoloader;
     }
 
@@ -381,34 +369,38 @@ class Pi
      *
      * @param string    $type       Application type
      * @param array     $config     Config data for the application
-     * @return {@Pi\Application\Engine\AbstractEngine}
+     * @return AbstractEngine
+     * @api
      */
     public static function engine($type = '', $config = array())
     {
         if (!isset(static::$engine)) {
             if (!$type) {
-                $type = defined('APPLICATION_ENGINE') ? APPLICATION_ENGINE : static::DEFAULT_APPLICATION_ENGINE;
+                $type = defined('APPLICATION_ENGINE')
+                    ? APPLICATION_ENGINE : static::DEFAULT_APPLICATION_ENGINE;
             }
-            $appEngineClass = 'Pi\\Application\\Engine\\' . ucfirst($type);
+            $appEngineClass = 'Pi\Application\Engine\\' . ucfirst($type);
             static::$engine = new $appEngineClass($config);
         }
+
         return static::$engine;
     }
 
     /**
-     * Load a service by name or return service handler if name is not specified
+     * Load a service or service handler
      *
-     * If service is not loaded with specified name, a service placeholder will be returned
+     * If service name is not specified, a service placeholder will be returned
      *
      * @param string    $name
      * @param array     $options
-     * @return Pi\Application\Service\ServiceAbstract|Pi\Application\Service
+     * @return Service|AbstractService
+     * @api
      */
     public static function service($name = null, $options = array())
     {
         // service handler
         if (!isset(static::$service)) {
-            static::$service = new Pi\Application\Service;
+            static::$service = new Service;
         }
         // Return service handler
         if (null === $name) {
@@ -416,13 +408,82 @@ class Pi
         }
         // Load a service
         $service = static::$service->load($name, $options);
+
         return $service;
+    }
+
+    /**
+     * Load user service
+     *
+     * @return User
+     * @api
+     */
+    public static function user()
+    {
+        return static::service('user');
+    }
+
+    /**
+     * Load registry
+     *
+     * Usage
+     *
+     * ```
+     *  // Global registry
+     *  Pi::registry(<name>)->read(<...>);
+     *  // Alias of
+     *  Pi::service('registry')-><name>->read(<...>);
+     *
+     *  // Module registry
+     *  Pi::registry(<name>, <module>)->read(<...>);
+     *  // Alias of
+     *  Pi::service('registry')->handler(<name>, <module>)->read(<...>);
+     * ```
+     *
+     * @param string $name
+     * @param string $module
+     *
+     * @return AbstractRegistry
+     * @api
+     */
+    public static function registry($name, $module = null)
+    {
+        return static::service('registry')->handler($name, $module);
+    }
+
+    /**
+     * Load module API
+     *
+     * Usage
+     *
+     * ```
+     *  // Module default API
+     *  Pi::api(<module-name>)->{<method>}(<args>);
+     *  // Alias of
+     *  Pi::service('api')->handler(<module-name>, 'api')->{<method>}(<args>);
+     *
+     *  // Module specific API
+     *  Pi::api(<module-name>, <api-name>)->{<method>}(<args>);
+     *  // Alias of
+     *  Pi::service('api')->handler(<module-name>, <api-name>)->{<method>}(<args>);
+     * ```
+     *
+     * @param string $module
+     * @param string $api
+     *
+     * @return AbstractApi
+     * @api
+     */
+    public static function api($module, $api = 'api')
+    {
+        return static::service('api')->handler($module, $api);
     }
 
     /**
      * Load database identifier
      *
-     * @return Pi\Application\Db
+     * @return Db
+     * @api
      */
     public static function db()
     {
@@ -430,6 +491,7 @@ class Pi
         if (!isset(static::$db)) {
             static::$db = static::service('database')->db();
         }
+
         return static::$db;
     }
 
@@ -439,7 +501,8 @@ class Pi
      * @param string    $name
      * @param string    $module
      * @param array     $options
-     * @return Pi\Application\Model\ModelAbstract
+     * @return Model
+     * @api
      */
     public static function model($name, $module = '', $options = array())
     {
@@ -454,13 +517,16 @@ class Pi
      *
      * @param string    $name       Name of the config element
      * @param string    $domain     Configuration domain
-     * @return mixed    configuration value or config handler if $name is not specified
+     * @return Config|mixed    config value or config handler if $name not specified
+     * @api
      */
     public static function config($name = null, $domain = null)
     {
         // config handler
         if (!isset(static::$config)) {
-            static::$config = new Pi\Application\Config(static::path('config'));
+            static::$config = new Config(
+                static::path('config')
+            );
         }
         // Return config handler
         if (null === $name) {
@@ -468,31 +534,39 @@ class Pi
         }
         // Read a config
         $value = static::$config->get($name, $domain);
+
         return $value;
     }
 
     /**
-     * Registry container for global variables
+     * Container for global entities
      *
-     * @param string $index The location to store the value, if value is not set, to load the value.
-     * @param mixed $value The object to store.
-     * @return mixed
+     * Register a variable to global container, or fetch a glbal entity if
+     * variable value is not provided
+     *
+     * @param string    $index  Name of the entity
+     * @param mixed     $value  The value to store.
+     * @return void|mixed
+     * @api
      */
-    public static function registry($index, $value = null)
+    public static function entity($index, $value = null)
     {
         $index = strtolower($index);
         if (null !== $value) {
-            static::$registry[$index] = $value;
+            static::$entity[$index] = $value;
         } else {
-            return isset(static::$registry[$index]) ? static::$registry[$index] : null;
+            return isset(static::$entity[$index])
+                ? static::$entity[$index] : null;
         }
     }
 
     /**
      * Register a shutdown callback with FILO
      *
-     * @param string|array $callback Callback method to be called in shutdown
-     * @param bool $toAppend To append current callback to registered shutdown list, false to prepend
+     * @param string|array  $callback
+     *  Callback method to be called in shutdown
+     * @param bool          $toAppend
+     *  To append current callback to registered shutdown list, false to prepend
      * @return void
      */
     public static function registerShutdown($callback, $toAppend = false)
@@ -503,35 +577,41 @@ class Pi
             array_unshift(static::$shutdown, $callback);
         }
     }
-    /**#@-*/
 
-    /**#@+
-     * Global APIs proxy to sub objects
-     */
     /**
      * Convert a path to a physical one, proxy to host handler
      *
-     * @param string    $url        Pi Engine path:
-     *                                  with ':' or leading slash '/' - absolute path, do not convert
-     *                                  First part as section, map to www if no section matched
+     * For path value to be examined:
+     *
+     *  - With `:` or leading slash `/` - absolute path, do not convert;
+     *  - Otherwise, first part as section, map to `www` if no section matched
+     *
+     * @see Host::path()
+     * @param string $path  Path to be converted
+     *
      * @return string
-     * @link Pi\Application\Host::path()
+     * @api
      */
-    public static function path($url)
+    public static function path($path)
     {
-        return static::$host->path($url);
+        return static::$host->path($path);
     }
 
     /**
      * Convert a path to an URL, proxy to host handler
      *
-     * @param string    $url        Pi Engine URI:
-     *                                  With URI scheme "://" - absolute URI, do not convert
-     *                                  First part as section, map to www if no section matched
-     *                                  If section URI is relative, www URI will be appended
-     * @param bool      $absolute   whether convert to full URI; relative URI is used by default, i.e. no hostname
+     * For URL to be examined:
+     *
+     *  - With URI scheme `://` - absolute URI, do not convert;
+     *  - First part as section, map to `www` if no section matched;
+     *  - If section URI is relative, `www` URI will be appended.
+     *
+     * @see Host::url()
+     * @param string    $url        URL to be converted
+     * @param bool      $absolute
+     *  Convert to full URI; Default as relative URI with no hostname
      * @return string
-     * @link Pi\Application\Host::url()
+     * @api
      */
     public static function url($url, $absolute = false)
     {
@@ -541,15 +621,37 @@ class Pi
     /**
      * Logs audit information
      *
-     * @param string $message
+     * @param string            $message
      * @param array|Traversable $extra
+     * @return void
+     * @api
      */
     public static function log($message, $extra = array())
     {
         static::service('log')->audit($message, $extra);
     }
-    /**#@-*/
+
+    /**
+     * Magic method to load service
+     *
+     * @param string    $method
+     * @param array     $args
+     *
+     * @return AbstractService|bool
+     */
+    public static function __callStatic($method, array $args)
+    {
+        if (count($args) > 1 || ($args && !is_array($args[0]))) {
+            return false;
+        }
+        $options = $args ? $args[0] : array();
+        $service = static::service($method, $options);
+
+        return $service;
+    }
 }
 
-// Initialize
+/**
+ * Initialize Pi Engine by calling `Pi::init()`
+ */
 Pi::init();

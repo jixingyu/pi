@@ -1,24 +1,14 @@
 <?php
 /**
- * Pi theme installer
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Pi\Application
- * @subpackage      Installer
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Pi\Application\Installer;
+
 use Pi;
 use Zend\EventManager\EventManager;
 use Zend\EventManager\Event;
@@ -27,45 +17,88 @@ use Zend\EventManager\Event;
  * Theme maintenance
  *
  * @see Pi\Application\Service\Asset for asset maintenance
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
  */
 class Theme
 {
+    /** @var array Operation result */
     protected $result;
+
+    /** @var array Options */
     protected $options;
+
+    /** @var EventManager Installer event manager */
     protected $events;
+
+    /** @var Event Installer event */
     protected $event;
+
+    /**
+     * Files requird by theme:
+     *
+     * - front: files required by front layout
+     * - admin: files required by admin layout
+     *
+     * @var array
+     */
     protected $fileList = array(
         'front' => array(
-            'template/layout-front.phtml',      // Complete layout template: header, footer, body, blocks, navigation
-            'template/layout-simple.phtml',     // Simple page layout: header, footer, body
-            'template/layout-style.phtml',      // Content with stylesheets
-            'template/layout-content.phtml',    // Raw content
+            // Complete layout template:
+            // header, footer, body, blocks, navigation
+            'template/layout-front.phtml',
+            // Simple page layout: header, footer, body
+            'template/layout-simple.phtml',
+            // Content with stylesheets
+            'template/layout-style.phtml',
+            // Raw content
+            'template/layout-content.phtml',
 
-            'template/paginator.phtml',         // Pagination template
+            // Pagination template
+            'template/paginator.phtml',
 
-            'template/error-exception.phtml',   // Exception error template
-            'template/error-404.phtml',         // 404 error template
-            'template/error-denied.phtml',      // Denied error template
+            // Exception error template
+            'template/error.phtml',
+            // 404 error template
+            'template/error-404.phtml',
+            // Denied error template
+            'template/error-denied.phtml',
 
-            'asset/css/style.css',              // Main css file
+            // Main css file
+            'asset/css/style.css',
         ),
         'admin' => array(
-            'template/layout-admin.phtml',      // Backoffice layout
+            // Backoffice layout
+            'template/layout-admin.phtml',
 
-            'template/paginator.phtml',         // Pagination template
+            // Pagination template
+            'template/paginator.phtml',
 
-            'template/error-exception.phtml',   // Exception error template
-            'template/error-404.phtml',         // 404 error template
-            'template/error-denied.phtml',      // Denied error template
+            // Exception error template
+            'template/error.phtml',
+            // 404 error template
+            'template/error-404.phtml',
+            // Denied error template
+            'template/error-denied.phtml',
 
-            'asset/css/style.css',              // Main css file
+            // Main css file
+            'asset/css/style.css',
         ),
     );
 
+    /**
+     * Magic methods for install, uninstall, update, etc.
+     *
+     * @param string $method
+     * @param array $args
+     * @return bool
+     * @throws \InvalidArgumentException
+     */
     public function __call($method, $args)
     {
         if (!in_array($method, array('install', 'uninstall', 'update'))) {
-            throw new \InvalidArgumentException(sprintf('Invalid action "%s".', $method));
+            throw new \InvalidArgumentException(
+                sprintf('Invalid action "%s".', $method)
+            );
         }
 
         $name = array_shift($args);
@@ -91,7 +124,12 @@ class Theme
             }
             return false;
         };
-        $result = $this->getEventManager()->trigger(sprintf('%s.pre', $method), null, $event, $shortCircuit);
+        $result = $this->getEventManager()->trigger(
+            sprintf('%s.pre', $method),
+            null,
+            $event,
+            $shortCircuit
+        );
         if ($result->stopped()) {
             return false;
         }
@@ -102,12 +140,21 @@ class Theme
             $this->event->setParam('result', $ret);
             return false;
         }
-        $result = $this->getEventManager()->trigger('process', null, $event, $shortCircuit);
+        $result = $this->getEventManager()->trigger(
+            'process',
+            null,
+            $event,
+            $shortCircuit
+        );
         if ($result->stopped()) {
             return false;
         }
 
-        $this->getEventManager()->trigger(sprintf('%s.post', $method), null, $event);
+        $this->getEventManager()->trigger(
+            sprintf('%s.post', $method),
+            null,
+            $event
+        );
         $this->getEventManager()->trigger('finish', null, $event);
 
         $status = true;
@@ -118,17 +165,29 @@ class Theme
                 //break;
             }
         //}
+
         return $status;
     }
 
+    /**
+     * Get EventManager
+     *
+     * @return EventManager
+     */
     public function getEventManager()
     {
         if (!$this->events) {
             $this->events = new EventManager;
         }
+
         return $this->events;
     }
 
+    /**
+     * Attach default listeners
+     *
+     * @return void
+     */
     protected function attachDefaultListeners()
     {
         $events = $this->getEventManager();
@@ -136,17 +195,35 @@ class Theme
         $events->attach('finish', array($this, 'clearCache'));
     }
 
+    /**
+     * Clear registry caches
+     *
+     * @param Event $e
+     * @return void
+     */
     public function clearCache(Event $e)
     {
-        Pi::service('registry')->theme->flush();
-        Pi::service('registry')->themelist->flush();
+        Pi::registry('theme')->flush();
+        Pi::registry('themelist')->flush();
     }
 
+    /**
+     * Get result
+     *
+     * @see Module\getResult()
+     * @return array
+     */
     public function getResult()
     {
         return $this->event->getParam('result');
     }
 
+    /**
+     * Render result messages
+     *
+     * @param array|null $message
+     * @return string
+     */
     public function renderMessage($message = null)
     {
         if (null === $message) {
@@ -155,38 +232,57 @@ class Theme
         $content = '';
         foreach ($message as $action => $state) {
             $content .= '<p>';
-            $content .= $action . ': ' . (($state['status'] === false) ? 'failed' : 'passed');
+            $content .= $action . ': '
+                      . (($state['status'] === false)
+                         ? 'failed' : 'passed'
+                      );
             if (!empty($state['message'])) {
-                $content .= '<br />&nbsp;&nbsp;' . implode('<br />&nbsp;&nbsp;', (array) $state['message']);
+                $content .= '<br />&nbsp;&nbsp;' . implode(
+                    '<br />&nbsp;&nbsp;',
+                    (array) $state['message']
+                );
             }
             $content .= '</p>';
         }
+
         return $content;
     }
 
+    /**
+     * Load theme meta
+     * @param Event $e
+     * @return void
+     */
     public function loadConfig(Event $e)
     {
-        //$config = include Pi::path('theme') . '/' . $e->getParam('name') . '/config.php';
         $config = Pi::service('theme')->loadConfig($e->getParam('name'));
         $e->setParam('config', $config);
     }
 
+    /**
+     * Canonize theme meta
+     *
+     * @param array $data
+     * @return array
+     */
     protected function canonizeData(array $data)
     {
         $return = array(
-            'name'          => isset($data['name']) ? $data['name'] : $this->event->getParam('name'),
-            'version'       => $data['version'],
-            'update'        => isset($data['update']) ? $data['update'] : time(),
-            'type'          => !empty($data['type']) ? $data['type'] : 'both',
-            /*
-            'title'         => $data['title'],
-            'author'        => $data['author'],
-            'screenshot'    => isset($data['screenshot']) ? $data['screenshot'] : '',
-            */
+            'name'      => isset($data['name'])
+                            ? $data['name'] : $this->event->getParam('name'),
+            'version'   => $data['version'],
+            'update'    => isset($data['update']) ? $data['update'] : time(),
+            'type'      => !empty($data['type']) ? $data['type'] : 'both',
         );
+
         return $return;
     }
 
+    /**
+     * Install action
+     *
+     * @return array
+     */
     protected function installAction()
     {
         $name = $this->event->getParam('name');
@@ -196,7 +292,9 @@ class Theme
             'status'    => true,
             'message'   => ''
         );
-        if (empty($config['parent']) && $files = $this->checkFiles($name, $type)) {
+        if (empty($config['parent'])
+            && $files = $this->checkFiles($name, $type)
+        ) {
             $result = array(
                 'status'    => false,
                 'message'   => 'Files missing: ' . implode(' ', $files)
@@ -223,9 +321,15 @@ class Theme
                 Pi::service('asset')->publishCustom($name);
             }
         }
+
         return $result;
     }
 
+    /**
+     * Update action
+     *
+     * @return array
+     */
     protected function updateAction()
     {
         $name = $this->event->getParam('name');
@@ -265,6 +369,11 @@ class Theme
         );
     }
 
+    /**
+     * Uninstall action
+     *
+     * @return array
+     */
     protected function uninstallAction()
     {
         $name = $this->event->getParam('name');
@@ -297,6 +406,14 @@ class Theme
         return $result;
     }
 
+    /**
+     * Check if required files available
+     *
+     * @param string $theme
+     * @param string $type
+     * @return array
+     * @throws \Exception
+     */
     protected function checkFiles($theme, $type = 'both')
     {
         $fileList = $this->fileList;
@@ -305,9 +422,13 @@ class Theme
         if (isset($fileList[$type])) {
             $files = $fileList[$type];
         } elseif ('both' == $type) {
-            $files = array_unique(array_merge($fileList['front'], $fileList['admin']));
+            $files = array_unique(
+                array_merge($fileList['front'], $fileList['admin'])
+            );
         } else {
-            throw new \Exception(sprintf('Wrong type "%s" configured.', $type));
+            throw new \Exception(
+                sprintf('Wrong type "%s" configured.', $type)
+            );
         }
         $missingFiles = array();
         foreach ($files as $file) {

@@ -1,20 +1,10 @@
 <?php
 /**
- * Pi Application Db API class
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Pi\Db
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Pi\Application;
@@ -22,21 +12,34 @@ namespace Pi\Application;
 use PDO;
 use Pi;
 use Pi\Db\Sql\Where;
-use Zend\Db\Adapter\Adapter;
-use Zend\Db\Sql\Expression;
-use Zend\Db\Sql\Predicate;
-use Zend\Db\Metadata\Metadata;
+use Pi\Db\Adapter\Adapter;
 use Pi\Db\Table\AbstractTableGateway;
 use Pi\Log\DbProfiler;
+use Zend\Db\Metadata\Metadata;
+use Zend\Db\Sql\Expression;
+use Zend\Db\Sql\Predicate;
+use Zend\Db\Sql\Sql;
+use Zend\Db\Sql\Select;
+use Zend\Db\Sql\Insert;
+use Zend\Db\Sql\Delete;
+use Zend\Db\Sql\Update;
 
-/*
- * In installation sql scripts, quote all database names with '{' and '}' so that all names can be easily prefixed on installation.
+/**
+ * Pi DB service gateway
+ *
+ * Note:
+ * In installation sql scripts, quote all database names with `{` and `}`
+ * so that all names can be canonized with prefix on installation.
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
  */
 class Db
 {
     /**
-     * Custom statement class for \PDO
-     * @see
+     * Custom statement class for PDO
+     *
+     * @var string
+     * @see http://www.php.net/manual/en/pdo.setattribute.php
      */
     const STATEMENT_CLASS = 'Pi\Db\Adapter\Driver\Statement';
 
@@ -47,18 +50,21 @@ class Db
 
     /**
      * Database schema
+     *
      * @var string
      */
     protected $schema;
 
     /**
      * Driver adapter
+     *
      * @var Adapter
      */
     protected $adapter;
 
     /**
      * Master-Slave adapters
+     *
      * @var array
      */
     protected $adapterMasterSlave = array(
@@ -68,30 +74,35 @@ class Db
 
     /**
      * Database metadata adapter
+     *
      * @var Metadata
      */
     protected $metadata;
 
     /**
      * Loaded models
+     *
      * @var array
      */
     protected $model = array();
 
     /**
      * Name prefix for all tables
+     *
      * @var string
      */
     protected $tablePrefix = '';
 
     /**
      * Name prefix for system tables
+     *
      * @var string
      */
     protected $corePrefix = 'core_';
 
     /**
      * DB profiling logger
+     *
      * @var DbProfiler
      */
     protected $profiler;
@@ -99,14 +110,16 @@ class Db
     /**
      * Constructor
      *
+     * Build DB handler with options:
+     *  - connection: Database connection parameters
+     *    - Single DB mode:
+     *      'driver', 'dsn', 'username', 'password', 'options'
+     *      [, 'connect_onload']
+     *    - Master-Slave mode: 'master', 'slave'
+     *  - table_prefix: database table prefix;
+     *  - core_prefix: core table prefix
+     *
      * @param array $options
-     *              'connection' - Database connection parameters
-     *                  Single DB mode:
-     *                      'driver', 'dsn', 'username', 'password', 'options'[, 'connect_onload']
-     *                  Master-Slave mode:
-     *                      'master', 'slave'
-     *              'table_prefix' - database table prefix;
-     *              'core_prefix' - core table prefix
      */
     public function __construct($options)
     {
@@ -123,14 +136,15 @@ class Db
      * Loads adatpers
      *
      * @param array $options
-     * @return Db
+     * @return self
      */
     public function loadAdapter($options)
     {
         if (isset($options['master'])) {
             $adapterMaster = $this->createAdapter($options['master']);
             $adapterSlave = $this->createAdapter($options['slave']);
-            $this->setAdapter($adapterMaster, 'master')->setAdapter($adapterSlave, 'slave');
+            $this->setAdapter($adapterMaster, 'master')
+                 ->setAdapter($adapterSlave, 'slave');
         } else {
             $adapter = $this->createAdapter($options);
             $this->setAdapter($adapter);
@@ -143,11 +157,12 @@ class Db
      * Set table prefix
      *
      * @param string $prefix
-     * @return Db
+     * @return self
      */
     public function setTablePrefix($prefix)
     {
         $this->tablePrefix = $prefix;
+
         return $this;
     }
 
@@ -165,7 +180,7 @@ class Db
      * Set system table prefix
      *
      * @param string $prefix
-     * @return Db
+     * @return self
      */
     public function setCorePrefix($prefix)
     {
@@ -187,11 +202,12 @@ class Db
      * Set database schema
      *
      * @param string $schema
-     * @return Db
+     * @return self
      */
     public function setSchema($schema)
     {
         $this->schema = $schema;
+
         return $this;
     }
 
@@ -204,6 +220,13 @@ class Db
     {
         return $this->schema;
     }
+
+    /**
+     * Get database schema
+     *
+     * @return void
+     * @see getSchema()
+     */
     public function schema()
     {
         return $this->getSchema();
@@ -212,23 +235,30 @@ class Db
     /**
      * Create adapter with configs
      *
-     * @param array $config
-     * @param \Zend\Db\Platform\PlatformInterface $platform
+     * Configs are canonized to avoid violiation of `driver_options`
+     * in {@link \Zend\Db\Adapter\Driver\Pdo\Connection::connect()}
+     *
+     * @param array                                 $config
+     * @param \Zend\Db\Adapter\AdapterInterface   $platform
      * @return Adapter
      */
     public function createAdapter(array $config, $platform = null)
     {
-        // Canonize config to avoid violiation of driver_options in Zend\Db\Adapter\Driver\Pdo\Connection::connect()
+        // Canonize config
         $options = array();
         if (isset($config['options'])) {
             $options = $config['options'];
             unset($config['options']);
         }
 
-        // Set user-supplied statement class derived from PDOStatement. Cannot be used with persistent PDO instances.
+        // Set user-supplied statement class derived from PDOStatement.
+        // Cannot be used with persistent PDO instances.
         // @see http://www.php.net/manual/en/pdo.setattribute.php
         if (!isset($config['driver_options'][PDO::ATTR_STATEMENT_CLASS])) {
-            $config['driver_options'][PDO::ATTR_STATEMENT_CLASS] = array(static::STATEMENT_CLASS, array($this->profiler()));
+            $config['driver_options'][PDO::ATTR_STATEMENT_CLASS] = array(
+                static::STATEMENT_CLASS,
+                array($this->profiler() ?: null)
+            );
         }
 
         $adapter = new Adapter($config, $platform);
@@ -239,9 +269,9 @@ class Db
     /**
      * Set adapter
      *
-     * @param Adapter $adapter
-     * @param null|string $type master or slave, default as null
-     * @return Db
+     * @param Adapter       $adapter
+     * @param null|string   $type     `master` or `slave`, default as null
+     * @return self
      */
     public function setAdapter(Adapter $adapter, $type = null)
     {
@@ -257,7 +287,7 @@ class Db
     /**
      * Get adatper
      *
-     * @param null|string $type master or slave, default as null
+     * @param null|string $type `master` or `slave`, default as null
      * @return Adapter
      */
     public function getAdapter($type = null)
@@ -272,7 +302,7 @@ class Db
     /**
      * Get adatper
      *
-     * @param null|string $type master or slave, default as null
+     * @param null|string $type `master` or `slave`, default as null
      * @return Adapter
      */
     public function adapter($type = null)
@@ -289,19 +319,25 @@ class Db
      */
     public function prefix($table = '', $type = '')
     {
-        $typePrefix = empty($type) || $type == 'core' ? $this->corePrefix : $type . '_';
+        $typePrefix = empty($type) || $type == 'core'
+                      ? $this->corePrefix : $type . '_';
         return sprintf('%s%s%s', $this->tablePrefix, $typePrefix, $table);
     }
 
     /**
      * Loads a model
      *
-     * Load a normal model: Pi::db()->model('block');
-     * Load a model with no model class: Pi::db()->model('page');
-     * Load a nest model with no model class: Pi::db()->model('test', array('type' => 'nest'));
+     * Sample:
      *
-     * @param string $name
-     * @param array $options
+     *  - Load a normal model:
+     *      `Pi::db()->model(<model-name>)`
+     *  - Load a model with no defined model class:
+     *      `Pi::db()->model(<model-name>)`
+     *  - Load a nest model with no defined model class:
+     *      `Pi::db()->model(<model-name>, array('type' => 'nest'))`
+     *
+     * @param string    $name
+     * @param array     $options
      * @return AbstractTableGateway
      */
     public function model($name, $options = array())
@@ -316,12 +352,20 @@ class Db
                 $module = '';
                 $key = $name;
             }
-            $className = str_replace(' ', '\\', ucwords(str_replace('_', ' ', $key)));
+            $className = str_replace(
+                ' ',
+                '\\',
+                ucwords(str_replace('_', ' ', $key))
+            );
             if ($module) {
-                $className = sprintf('Module\\%s\\Model\\%s', ucfirst($module), $className);
+                $className = sprintf(
+                    'Module\\%s\Model\\%s',
+                    ucfirst($module),
+                    $className
+                );
                 $options['prefix'] = static::prefix('', $module);
             } else {
-                $className = sprintf('Pi\\Application\\Model\\%s', $className);
+                $className = sprintf('Pi\Application\Model\\%s', $className);
                 $options['prefix'] = static::prefix('', 'core');
             }
             if (!class_exists($className)) {
@@ -331,10 +375,11 @@ class Db
                 } else {
                     $type = 'Model';
                 }
-                $className = 'Pi\\Application\\Model\\' . $type;
+                $className = 'Pi\Application\Model\\' . $type;
             }
             $options['name'] = $key;
-            $options['adapter'] = empty($options['adapter']) ? $this->adapter() : $options['adapter'];
+            $options['adapter'] = empty($options['adapter'])
+                                ? $this->adapter() : $options['adapter'];
             $model = new $className($options);
             if (!$model instanceof AbstractTableGateway) {
                 $model = false;
@@ -342,6 +387,7 @@ class Db
 
             $this->model[$name] = $model;
         }
+
         return $this->model[$name];
     }
 
@@ -355,13 +401,14 @@ class Db
         if (!$this->metadata) {
             $this->metadata = new Metadata($this->getAdapter());
         }
+
         return $this->metadata;
     }
 
     /**
-     * Creates Where object
+     * Creates `Where` object
      *
-     * @param string|array|null $params
+     * @param string|array|null $predicate
      * @return Where
      */
     public function where($predicate = null)
@@ -372,32 +419,145 @@ class Db
     /**
      * Creates a SQL expression
      *
-     * @param string $expression
-     * @param string|array $parameters
-     * @param array $types
+     * @param string        $expression
+     * @param string|array  $parameters
+     * @param array         $types
      * @return Expression
      */
-    public function expression($expression = '', $parameters = null, array $types = array())
-    {
+    public function expression(
+        $expression = '',
+        $parameters = null,
+        array $types = array()
+    ) {
         $expression = new Expression($expression, $parameters, $types);
+
         return $expression;
     }
 
     /**
      * Log a query information or load all log information
      *
-     * @param object|null $profiler
-     * @return object|Db
+     * @param DbProfiler|null $profiler
+     * @return DbProfiler|self
      */
-    public function profiler($profiler = null)
+    public function profiler(DbProfiler $profiler = null)
     {
         if (null === $profiler) {
             if (null === $this->profiler) {
-                $this->profiler = Pi::service()->hasService('log') ? Pi::service('log')->dbProfiler() : false;
+                $this->profiler = Pi::service()->hasService('log')
+                                ? Pi::service('log')->dbProfiler() : false;
             }
+
             return $this->profiler;
         }
         $this->profiler = $profiler;
+
         return $this;
+    }
+
+    /**
+     * Create SQL
+     *
+     * @param Adapter $adapter
+     * @param string  $table
+     *
+     * @return Sql
+     */
+    public function sql(Adapter $adapter = null, $table = '')
+    {
+        $sql = new Sql($adapter ?: $this->getAdapter(), $table);
+
+        return $sql;
+    }
+
+    /**
+     * Create select SQL
+     *
+     * @param string  $table
+     *
+     * @return Select
+     */
+    public function select($table = '')
+    {
+        $sql = new Select($table);
+
+        return $sql;
+    }
+
+    /**
+     * Create insert SQL
+     *
+     * @param string $table
+     *
+     * @return Insert
+     */
+    public function insert($table = '')
+    {
+        $sql = new insert($table);
+
+        return $sql;
+    }
+
+    /**
+     * Create update SQL
+     *
+     * @param string $table
+     *
+     * @return Update
+     */
+    public function update($table = '')
+    {
+        $sql = new update($table);
+
+        return $sql;
+    }
+
+    /**
+     * Create delete SQL
+     *
+     * @param string $table
+     *
+     * @return Delete
+     */
+    public function delete($table = '')
+    {
+        $sql = new delete($table);
+
+        return $sql;
+    }
+
+    /**
+     * Execute a sql query
+     *
+     * @param Sql|Select|Update|Delete|string $sql
+     * @return \Zend\Db\ResultSet\ResultSet
+     */
+    public function query($sql)
+    {
+        if (is_string($sql)) {
+            try {
+                $result = $this->getAdapter()->query(
+                    $sql,
+                    Adapter::QUERY_MODE_EXECUTE
+                );
+            } catch (\Exception $e) {
+                $result = false;
+            }
+
+            return $result;
+        }
+
+        try {
+            $statement = $this->sql()->prepareStatementForSqlObject($sql);
+        } catch (\Exception $e) {
+            return false;
+        }
+        try {
+            $result = $statement->execute();
+        } catch (\Exception $e) {
+            $result =  false;
+        }
+
+        return $result;
     }
 }

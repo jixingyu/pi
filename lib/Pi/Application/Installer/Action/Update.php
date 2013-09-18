@@ -1,28 +1,26 @@
 <?php
 /**
- * Pi module update action
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Pi\Application
- * @subpackage      Installer
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Pi\Application\Installer\Action;
+
 use Pi;
 
+/**
+ * Module updater
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 class Update extends AbstractAction
 {
+    /**
+     * {@inheritDoc}
+     */
     protected function attachDefaultListeners()
     {
         $events = $this->events;
@@ -30,13 +28,19 @@ class Update extends AbstractAction
             $events->attach('update.post', array($this, 'removeDependency'));
             $events->attach('update.post', array($this, 'createDependency'));
         }
+
         return $this;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function process()
     {
         $model = Pi::model('module');
-        $row = $model->select(array('name' => $this->event->getParam('module')))->current();
+        $row = $model->select(array(
+            'name' => $this->event->getParam('module')
+        ))->current();
 
         $config = $this->event->getParam('config');
         $configVersion = $config['meta']['version'];
@@ -51,7 +55,8 @@ class Update extends AbstractAction
         $originalRow = clone $row;
         $config = $this->event->getParam('config');
         $meta = array('update' => time());
-        $moduleColumns = array('id', 'name', 'title', 'directory', 'version', 'update', 'active');
+        $moduleColumns = array('id', 'name', 'title', 'directory',
+                               'version', 'update', 'active');
         foreach ($config['meta'] as $key => $value) {
             if (in_array($key, $moduleColumns)) {
                 $meta[$key] = $value;
@@ -74,12 +79,16 @@ class Update extends AbstractAction
         return true;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function rollback()
     {
         $row = $this->event->getParam('row');
         if ($row) {
             $row->save();
         }
+        
         return;
     }
 }

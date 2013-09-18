@@ -1,21 +1,11 @@
 <?php
 /**
- * Form Fieldset view helper
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Pi\Form
- * @subpackage      View
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
+ * @package         Form
  */
 
 namespace Pi\Form\View\Helper;
@@ -25,17 +15,20 @@ use Zend\Form\ElementInterface;
 use Zend\Form\Exception;
 use Zend\Form\View\Helper\AbstractHelper;
 
+/**
+ * Fieldset helper
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 class FormFieldset extends AbstractHelper
 {
-    /**
-     * @var FormRow
-     */
+    /** @var FormRow Row render helper */
     protected $rowHelper;
 
     /**
      * If set to true, collections are automatically wrapped around a fieldset
      *
-     * @var boolean
+     * @var bool
      */
     protected $shouldWrap = true;
 
@@ -45,8 +38,8 @@ class FormFieldset extends AbstractHelper
      * Proxies to {@link render()}.
      *
      * @param  ElementInterface|null $element
-     * @param  boolean $wrap
-     * @return string|FormFieldset
+     * @param  bool $wrap
+     * @return string|self
      */
     public function __invoke(ElementInterface $element = null, $wrap = true)
     {
@@ -63,11 +56,12 @@ class FormFieldset extends AbstractHelper
      * If set to true, collections are automatically wrapped around a fieldset
      *
      * @param bool $wrap
-     * @return FormFieldset
+     * @return self
      */
     public function setShouldWrap($wrap)
     {
-        $this->shouldWrap = (bool)$wrap;
+        $this->shouldWrap = (bool) $wrap;
+
         return $this;
     }
 

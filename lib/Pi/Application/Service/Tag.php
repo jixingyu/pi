@@ -1,21 +1,11 @@
 <?php
 /**
- * Pi Engine tag service
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @package         Pi\Application
- * @subpackage      Service
- * @since           3.0
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
+ * @package         Service
  */
 
 namespace Pi\Application\Service;
@@ -48,12 +38,15 @@ use Module\Tag\Service as TagService;
  *  Pi::service('tag')->match('n', 5, 'article');
  *  Pi::service('tag')->match('new', 5);
  * </code>
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
  */
 class Tag extends AbstractService
 {
     /**
      * Whether or not the service is active, or tag module is activated
-     * @var boolean
+     *
+     * @var bool
      */
     protected $active = null;
 
@@ -67,6 +60,7 @@ class Tag extends AbstractService
         if (null === $this->active) {
             $this->active = Pi::service('module')->isActive('tag');
         }
+
         return $this->active;
     }
 
@@ -87,6 +81,7 @@ class Tag extends AbstractService
         }
         $time = $time ?: time();
         $tags = (array) $tags;
+
         return TagService::add($module, $item, $type, $tags, $time);
     }
 
@@ -107,6 +102,7 @@ class Tag extends AbstractService
         }
         $time = $time ?: time();
         $tags = (array) $tags;
+
         return TagService::update($module, $item, $type, $tags, $time);
     }
 
@@ -123,6 +119,7 @@ class Tag extends AbstractService
         if (!$this->active()) {
             return false;
         }
+
         return TagService::delete($module, $item, $type);
     }
 
@@ -139,6 +136,7 @@ class Tag extends AbstractService
         if (!$this->active()) {
             return false;
         }
+
         return TagService::get($module, $item, $type);
     }
 
@@ -152,12 +150,24 @@ class Tag extends AbstractService
      * @param int    $offset        Offset
      * @return array|bool
      */
-    public function getList($module, $tag, $type = null, $limit = null, $offset = 0)
-    {
+    public function getList(
+        $module,
+        $tag,
+        $type = null,
+        $limit = null,
+        $offset = 0
+    ) {
         if (!$this->active()) {
             return false;
         }
-        return TagService::getList($module, (array) $tag, $type, $limit, $offset);
+
+        return TagService::getList(
+            $module,
+            (array) $tag,
+            $type,
+            $limit,
+            $offset
+        );
     }
 
     /**
@@ -173,6 +183,7 @@ class Tag extends AbstractService
         if (!$this->active()) {
             return false;
         }
+
         return TagService::getCount($module, (array) $tag, $type);
     }
 
@@ -190,6 +201,7 @@ class Tag extends AbstractService
         if (!$this->active()) {
             return false;
         }
+
         return TagService::match($term, $limit, $module, $type);
     }
 
@@ -208,6 +220,7 @@ class Tag extends AbstractService
         if (method_exists('TagService', $method)) {
             return call_user_func_array(array('TagService', $method), $args);
         }
+        
         return null;
     }
 }

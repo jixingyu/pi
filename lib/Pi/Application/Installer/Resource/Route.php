@@ -1,58 +1,70 @@
 <?php
 /**
- * Pi module installer resource
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Pi\Application
- * @subpackage      Installer
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Pi\Application\Installer\Resource;
+
 use Pi;
 
 /**
- * Route configuration
+ * Route setup
  *
+ * If route name is not specified, route name is generated
+ * by module name and route key as: `<module>-<route-key>`
+ *
+ *
+ * ```
  * array(
-    // A specified route
-    'name'   => array(
-        // section: front, admin, feed, etc.
-        'section'   => 'front',
-        // order to call
-        'priority'  => -999,
-        // Type defined in \Pi\Mvc\Router\Route
-        'type'      => 'Standard',
-        'options'   =>array(
-            'route' => '', // Used as prefix, which is different from Zend routes
-            'structure_delimiter'   => '/',
-            'param_delimiter'       => '/',
-            'key_value_delimiter'   => '-',
-            'defaults'              => array(
-                'module'        => 'system',
-                'controller'    => 'public',
-                'action'        => 'index',
-            )
-        )
-    ),
+ *  // A specified route
+ *  <route-eky>   => array(
+ *      // Optional route name
+ *      'name'  => <route-name>
+ *      // section: front, admin, feed, etc.
+ *      'section'   => 'front',
+ *      // order to call
+ *      'priority'  => -999,
+ *      // Type defined in `Pi\Mvc\Router\Route`
+ *      'type'      => 'Standard',
+ *      'options'   =>array(
+ *          // Used as prefix, which is different from Zend routes
+ *          'route' => '',
+ *          'structure_delimiter'   => '/',
+ *          'param_delimiter'       => '/',
+ *          'key_value_delimiter'   => '-',
+ *          'defaults'              => array(
+ *              'module'        => 'system',
+ *              'controller'    => 'public',
+ *              'action'        => 'index',
+ *          )
+ *      )
+ *  ),
  * );
+ * ```
+ *
+ * - To use a route with specified name:
+ * ```
+ *  Pi::serice('url')->assemble('<route-name>', array(<...>));
+ * ```
+ *
+ * - To use a route with no specified name:
+ * ```
+ *  Pi::serice('url')->assemble('<module>-<route-name>', array(<...>));
+ * ```
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
  */
-
-
 class Route extends AbstractResource
 {
     /**
-     * Canonizes route name, prefix with module name for any module other than system
+     * Canonizes route config
+     *
+     * If route name is not specified, route name is generated
+     * by module name and route key as: `<module>-<route-key>`
      *
      * @param array $configs
      * @return array
@@ -62,10 +74,12 @@ class Route extends AbstractResource
         $module = $this->event->getParam('module');
 
         $routes = array();
-        foreach ($configs as $name => $data) {
-            if ('system' != $module) {
-                $name = $module . '-' . $name;
-                $data['module'] = $module;
+        foreach ($configs as $key => $data) {
+            if (isset($data['name'])) {
+                $name = $data['name'];
+                unset($data['name']);
+            } else {
+                $name = $module . '-' . $key;
             }
             $route = array(
                 'name'      => $name,
@@ -88,6 +102,12 @@ class Route extends AbstractResource
         return $routes;
     }
 
+    /**
+     * Canonize route specifications
+     *
+     * @param array $data
+     * @return array
+     */
     protected function canonizeRoute(array $data)
     {
         $module = $this->event->getParam('module');
@@ -110,6 +130,9 @@ class Route extends AbstractResource
         return $route;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function installAction()
     {
         if (empty($this->config)) {
@@ -132,15 +155,18 @@ class Route extends AbstractResource
                 );
             }
         }
-        Pi::service('registry')->route->flush();
+        Pi::registry('route')->flush();
 
         return true;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function updateAction()
     {
         $module = $this->event->getParam('module');
-        Pi::service('registry')->route->flush();
+        Pi::registry('route')->flush();
         if ($this->skipUpgrade()) {
             return;
         }
@@ -159,37 +185,46 @@ class Route extends AbstractResource
                 );
             }
         }
-        Pi::service('registry')->route->flush();
+        Pi::registry('route')->flush();
 
         return true;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function uninstallAction()
     {
         $module = $this->event->getParam('module');
         $modelRoute = Pi::model('route');
         $modelRoute->delete(array('module' => $module));
-        Pi::service('registry')->route->flush();
+        Pi::registry('route')->flush();
 
         return true;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function activateAction()
     {
         $module = $this->event->getParam('module');
         $modelRoute = Pi::model('route');
         $modelRoute->update(array('active' => 1), array('module' => $module));
-        Pi::service('registry')->route->flush();
+        Pi::registry('route')->flush();
 
         return true;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function deactivateAction()
     {
         $module = $this->event->getParam('module');
         $modelRoute = Pi::model('route');
         $modelRoute->update(array('active' => 0), array('module' => $module));
-        Pi::service('registry')->route->flush();
+        Pi::registry('route')->flush();
 
         return true;
     }

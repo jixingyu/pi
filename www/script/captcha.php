@@ -1,31 +1,25 @@
 <?php
 /**
- * CAPTCHA image generator
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Pi\Captcha
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 // Skip engine bootup
-define('PI_BOOT_SKIP', 1);
+//define('PI_BOOT_SKIP', 1);
 // Disable error_reporting
-define('APPLICATION_ENV', 'production');
+//define('APPLICATION_ENV', 'production');
 
 // Pi boot with no engine bootup: current file is located in www/script/...
 require __DIR__ . '/../boot.php';
+
+// Disable debugger message
+Pi::service('log')->mute();
+
 // Load session resource which is required by CAPTCHA
-Pi::engine()->loadResource('session');
+Pi::engine()->bootResource('session');
 
 // Retrieve id generated CAPTCHA
 $id = htmlspecialchars($_GET['id'], ENT_QUOTES, 'UTF-8');
@@ -47,6 +41,7 @@ if (empty($image)) {
     } else {
         header('HTTP/1.1 404 Not Found');
     }
+
     return;
 }
 

@@ -1,34 +1,43 @@
 <?php
 /**
- * Memcached service
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @package         Pi\Application
- * @subpackage      Service
- * @since           3.0
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
+ * @package         Service
  */
 
 namespace Pi\Application\Service;
-use Pi,
-    Exception,
-    MemcachedExtension;
 
+use Pi;
+use Exception;
+use Memcached as MemcachedExtension;
+
+/**
+ * Memcached service
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 class Memcached extends AbstractService
 {
+    /** @var array Instances */
     protected static $instances = array();
+
+    /** @var int Default port */
     const DEFAULT_PORT =  11211;
+
+    /** @var int Default weight */
     const DEFAULT_WEIGHT  = 1;
 
+    /**
+     * Load options
+     *
+     * @param string|array $config
+     * @return array
+     * @see http://www.php.net/manual/en/memcached.constants.php
+     *      for Memcached predefined constants
+     */
     protected function loadOptions($config)
     {
         if (is_string($config)) {
@@ -48,13 +57,15 @@ class Memcached extends AbstractService
                     if (defined($optConst)) {
                         $optId = constant($optConst);
                     } else {
-                        trigger_error(srpintf('Unknown memcached client option "%s" (%s)', $name, $optConst));
+                        $msg = 'Unknown memcached client option "%s" (%s)';
+                        trigger_error(srpintf($msg, $name, $optConst));
                     }
                 }
                 if ($optId) {
                     if (is_string($value)) {
                         $memcachedValue = 'Memcached::' . strtoupper($value);
-                        $value = defined($memcachedValue) ? constant($memcachedValue) : $value; // For Memcached predefined constants, see http://www.php.net/manual/en/memcached.constants.php
+                        $value = defined($memcachedValue)
+                            ? constant($memcachedValue) : $value;
                     }
                     $clients[$optId] = $value;
                 }
@@ -68,7 +79,8 @@ class Memcached extends AbstractService
         // setup memcached servers
         $serverList = isset($config['servers']) ? $config['servers'] : $config;
         if (isset($serverList['host'])) {
-            $serverList = array(0 => $serverList); // Transform it into associative arrays
+            // Transform it into associative arrays
+            $serverList = array(0 => $serverList);
         }
         $servers = array();
         foreach ($serverList as $idx => $server) {
@@ -78,7 +90,11 @@ class Memcached extends AbstractService
             if (!array_key_exists('weight', $server)) {
                 $server['weight'] = static::DEFAULT_WEIGHT;
             }
-            $servers[] = array($server['host'], $server['port'], $server['weight']);
+            $servers[] = array(
+                $server['host'],
+                $server['port'],
+                $server['weight']
+            );
         }
         if (!empty($servers)) {
             $options['servers'] = $servers;
@@ -89,6 +105,13 @@ class Memcached extends AbstractService
         return $options;
     }
 
+    /**
+     * Load a memcached instance
+     *
+     * @param array|null $config
+     * @return MemcachedExtension
+     * @throws exception
+     */
     public function load($config = null)
     {
         if (!extension_loaded('memcached')) {
@@ -114,7 +137,8 @@ class Memcached extends AbstractService
             // setup memcached client options
             foreach ($options['client'] as $optId => $value) {
                 if (!$memcached->setOption($optId, $value)) {
-                    trigger_error(sprintf('Setting memcached client option "%s" failed', $optId));
+                    $msg = 'Setting memcached client option "%s" failed';
+                    trigger_error(sprintf($msg, $optId));
                 }
             }
         }

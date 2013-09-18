@@ -1,29 +1,36 @@
 <?php
 /**
- * Demo index controller
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Module\Demo
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Module\Demo\Controller\Front;
 
 use Pi;
 use Pi\Mvc\Controller\ActionController;
+use Pi\Paginator\Paginator;
+use Zend\Db\Sql\Predicate\Expression;
 
 class IndexController extends ActionController
 {
+    public function getEmailAction()
+    {
+        $token = $this->params('access_token');
+        $clientid = $this->params('client_id');
+        $result = Pi::api('oauth', 'resource')->validateToken($clientid, $token, 'test');
+        $params = $result->getParams();
+        if (!empty($params['error'])) {
+            $result->send();
+            exit;
+        } else {
+            $this->view()->assign('email', Pi::user()->getUser($params['resource_owner'])->email);
+            $this->view()->setTemplate(false);
+        }
+    }
+
     /**
      * A test page with a couple of API demos
      */
@@ -48,7 +55,8 @@ class IndexController extends ActionController
         // Specify meta parameter
         $this->view()->headMeta()->prependName('generator', 'DEMO');
 
-        // Specify template, otherwise template will be set up as {controller}-{action}
+        // Specify template,
+        // otherwise template will be set up as {controller}-{action}
         $this->view()->setTemplate('demo-index');
     }
 
@@ -63,7 +71,6 @@ class IndexController extends ActionController
         //$offset = ($page - 1) * $this->config('item_per_page');
         $limit = $this->config('item_per_page');
         $model = $this->getModel('page');
-        //$select = $model->select()->where(array('flag' => $flag))->order('id')->offset($offset)->limit($limit);
         $select = $model->select()->where(array('flag' => $flag))->order('id');
         $rowset = $model->selectWith($select);
         $pages = array();
@@ -72,19 +79,14 @@ class IndexController extends ActionController
         }
 
         //$data = $rowset->toArray();
-        $paginator = \Pi\Paginator\Paginator::factory($pages);
+        $paginator = Paginator::factory($pages);
         $paginator->setItemCountPerPage($limit);
         $paginator->setCurrentPageNumber($page);
         $paginator->setUrlOptions(array(
             // Use router to build URL for each page
-            'pageParam'     => 'p',
-            'totalParam'    => 't',
-            'router'        => $this->getEvent()->getRouter(),
-            'route'         => $this->getEvent()->getRouteMatch()->getMatchedRouteName(),
+            'page_param'    => 'p',
+            'total_param'   => 't',
             'params'        => array(
-                'module'        => $this->getModule(),
-                'controller'    => 'index',
-                'action'        => 'page',
                 'f'             => $flag,
             ),
             // Or use a URL template to create URLs
@@ -106,8 +108,8 @@ class IndexController extends ActionController
         $model = $this->getModel('page');
 
         $offset = (int) ($page - 1) * $this->config('item_per_page');
-        $select = $model->select()->where(array('flag' => $flag))->order('id')->offset($offset)->limit($limit);
-        //$select = $model->select()->where(array('flag' => $flag))->order('id');
+        $select = $model->select()->where(array('flag' => $flag))
+            ->order('id')->offset($offset)->limit($limit);
         $rowset = $model->selectWith($select);
         $items = array();
         foreach ($rowset as $row) {
@@ -115,27 +117,52 @@ class IndexController extends ActionController
         }
 
         //$data = $rowset->toArray();
-        $select = $model->select()->columns(array('count' => new \Zend\Db\Sql\Predicate\Expression('count(*)')))->where(array('flag' => $flag));
+        $select = $model->select()
+            ->columns(array('count' => new Expression('count(*)')))
+            ->where(array('flag' => $flag));
         $count = $model->selectWith($select)->current()->count;
 
-        $paginator = \Pi\Paginator\Paginator::factory(intval($count));
+        /*
+        $paginator = Paginator::factory(intval($count));
         $paginator->setItemCountPerPage($limit);
         $paginator->setCurrentPageNumber($page);
         $paginator->setUrlOptions(array(
             // Use router to build URL for each page
-            'pageParam'     => 'p',
-            'totalParam'    => 't',
-            'router'        => $this->getEvent()->getRouter(),
-            'route'         => $this->getEvent()->getRouteMatch()->getMatchedRouteName(),
+            'page_param'    => 'p',
+            'total_param'   => 't',
             'params'        => array(
-                'module'        => $this->getModule(),
-                'controller'    => 'index',
-                'action'        => 'simple',
                 'f'             => $flag,
             ),
             // Or use a URL template to create URLs
-            //'template'      => '/url/p/%page%/t/%total%',
+            //'template'      => '/url/p/__page__/t/__total__',
+            'template'  => Pi::service('url')->assemble('', array(
+                'p' => '__page__',
+                't' => '__total__',
+                'f' => $flag,
+            ), true),
+        ));
+        */
+        $paginator = Paginator::factory(intval($count), array(
+            'limit' => $limit,
+            'page'  => $page,
+            'url_options'           => array(
+                // Use router to build URL for each page
+                'page_param'    => 'p',
+                'total_param'   => 't',
+                'params'        => array(
+                    'f'             => $flag,
+                ),
 
+                // Or use a URL template to create URLs
+                //'template'      => '/url/p/__page__/t/__total__',
+                /*
+                'template'  => Pi::service('url')->assemble('', array(
+                    'p' => '__page__',
+                    't' => '__total__',
+                    'f' => $flag,
+                ), true),
+                */
+            ),
         ));
         $this->view()->assign('items', $items);
         $this->view()->assign('paginator', $paginator);
@@ -148,11 +175,19 @@ class IndexController extends ActionController
      */
     public function testAction()
     {
-        $content = sprintf(__('<br />No template rendering.<br />Test is now at %s'), __METHOD__);
+        $content = sprintf(
+            __('<br />No template rendering.<br />Test is now at %s'),
+            __METHOD__
+        );
 
-        Pi::service('event')->trigger('user_call', __('Triggered data from Demo module'), 'demo');
+        Pi::service('event')->trigger(
+            'user_call',
+            __('Triggered data from Demo module'),
+            'demo'
+        );
         // Disable template
         $this->view()->setTemplate(false);
+
         return $content;
     }
 
@@ -161,6 +196,7 @@ class IndexController extends ActionController
         $content = __('Test for user_call event');
         Pi::service('event')->trigger('user_call');
         $this->view()->setTemplate(false);
+
         return $content;
     }
 

@@ -1,8 +1,9 @@
 <?php
-namespace Pi\Oauth\Provider\Storage\Model;
+namespace Pi\Oauth\Provider\Storage\Model\Database;
 
 use Pi;
 use Pi\Oauth\Provider\Service;
+use Pi\Oauth\Provider\Storage\Model\LoaderInterface;
 
 class Loader implements LoaderInterface
 {
@@ -17,10 +18,11 @@ class Loader implements LoaderInterface
     {
         $class = __NAMESPACE__ . '\\' . Service::canonizeName($identifier);
         if ('resource_owner' == $identifier) {
-            $model = Pi::model('user');
+            $model = Pi::model('user_account');
         } else {
             $model = Pi::model($identifier, static::$config['table_prefix']);
         }
+
         return new $class($model);
     }
 }

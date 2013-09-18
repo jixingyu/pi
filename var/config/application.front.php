@@ -1,18 +1,13 @@
 <?php
 /**
- * Pi Engine application specifications
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * Pi Engine standard/front application specifications
  *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @version         $Id$
  */
 
 return array(
@@ -40,6 +35,7 @@ return array(
         ),
         // Intl resource, instantiate translator services and load specified translation data
         'i18n'      => array(
+            // Translations to be loaded on bootstrap
             'translator'    => array(
                 // Global available
                 'global'    => array('usr:main'),
@@ -54,12 +50,13 @@ return array(
         // Session resource, load configs from resource.session.php and instantiate session service
         'session'   => array(),
         // Load authentication configs from resource.authentication.php and instantiate authentication service
-        'authentication'    => array(),
+        //'authentication'    => array(),
         // Instantiate use handler
         'user'      => array(),
         // Instantiate ACL manager and register listeners
+
         'acl'       => array(
-            // Default access perm in case not defined
+            // Default access perm in case not defined: true for allowed, false for denied
             'default'       => true,
             // If check page access
             'check_page'    => false,
@@ -77,28 +74,7 @@ return array(
     /**#@+
      * Service Manager configuration, and Application service configurations managed by Configuration service {@Pi\Mvc\Service\ConfigurationFactory}
      */
-    //ServiceMananger Configuration
-    'service_manager'   => array(
-    ),
     // Application service configuration
-    'application'   => array(
-        'view_manager' => array(
-            'display_not_found_reason'  => true,
-            'display_exceptions'        => true,
-            'not_found_template'        => 'error-404',
-            'exception_template'        => 'error-exception',
-            'denied_template'           => 'error-denied',
-            'layout_error'              => 'layout-style',
-        ),
-        'send_response' => array(
-            // Compress for response
-            // @see Zend\Filter\Compress\Gz
-            'compress'  => array(
-                'mode'      => false,   // Valid modes: deflate, gzip; default as 'gzip', false for disable
-                'level'     => 6,
-                //'archive'   => null,
-            ),
-        ),
-    )
+    'application'   => include __DIR__ . '/config.application.php',
     /**#@-*/
 );

@@ -1,76 +1,52 @@
 <?php
 /**
- * Block helper
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Pi\View
- * @subpackage      Helper
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
+ * @package         View
  */
 
 namespace Pi\View\Helper;
 
 use Pi;
 use Pi\Db\RowGateway\RowGateway as BlockRow;
-use Pi\Mvc\CacheEvent;
-use Pi\Security;
 use Zend\View\Model\ViewModel;
 use Zend\View\Helper\AbstractHelper;
 use MarkdownDocument;
-//use Pi\Markup\Markup;
 
 /**
  * Helper for fetching and rendering a block
- * @see Pi\Application\Registry\Block
  *
- * Usage inside a phtml template:
- * <code>
- *  $this->block('block-name', array('title_hidden' => 1, 'opt1' => 'val1', 'opt2' => 'val2'));
- *  $this->block('block-name', array('link' => '/link/to/a/URL', 'opt1' => 'val1', 'opt2' => 'val2'));
- *  $this->block('block-name', array('style' => 'specified-css-class', 'opt1' => 'val1', 'opt2' => 'val2'));
+ * When cache is enabled for a block,
+ * its immediate data are cached instead of final rendered content
+ *
+ * Usage inside a phtml template
+ *
+ * ```
+ *  $this->block('block-name',
+ *      array('title_hidden' => 1, 'opt1' => 'val1', 'opt2' => 'val2'));
+ *  $this->block('block-name',
+ *      array('link' => '/link/to/a/URL', 'opt1' => 'val1', 'opt2' => 'val2'));
+ *  $this->block('block-name',
+ *      array('style' => 'specified-css-class',
+ *      'opt1' => 'val1', 'opt2' => 'val2'));
  *  $this->block(24, array('opt1' => 'val1', 'opt2' => 'val2'));
  *  $this->block()->load(24);
  *  $this->block()->render($blockModel);
- * </code>
+ * ```
+ *
+ * @see Pi\Application\Registry\Block
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
  */
 class Block extends AbstractHelper
 {
     /**
-     * Context specific CacheEvent
-     * @var /Pi/Mvc/CacheEvent
-     */
-    protected static $cacheEvent;
-
-    /**
-     * Get CacheEvent for block content cache
-     *
-     * NOTE: currently block intermediate data are cached instead of rendered content, thus the method is not used yet
-     *
-     * @return type
-     */
-    protected function cacheEvent()
-    {
-        if (!$this->cacheEvent) {
-            $this->cacheEvent = Pi::engine()->loadResource('cache')->cacheEvent('block');
-        }
-        return $this->cacheEvent;
-    }
-
-    /**
-     * Load a block model from database
+     * Load a block row from database
      *
      * @param string|int $id
-     * @return  BlockModel
+     * @return BlockRow
      */
     public function load($id)
     {
@@ -91,7 +67,7 @@ class Block extends AbstractHelper
      *
      * @param   string|int|BlockRow $block
      * @param   array $options
-     * @return  Block|array|BlockModel
+     * @return  self|array|false
      */
     public function __invoke($block = null, $options = array())
     {
@@ -135,7 +111,15 @@ class Block extends AbstractHelper
         $block = $blockRow->toArray();
 
         // Override with instant options
-        foreach (array('title', 'link', 'class', 'cache_ttl', 'cache_level', 'template', 'title_hidden') as $key) {
+        foreach (array(
+            'title',
+            'link',
+            'class',
+            'cache_ttl',
+            'cache_level',
+            'template',
+            'title_hidden'
+        ) as $key) {
             if (isset($options[$key])) {
                 $block[$key] = $options[$key];
             }
@@ -148,19 +132,12 @@ class Block extends AbstractHelper
         //$cacheOptions = null;
         $blockData = null;
         if ('tab' != $block['type'] && $block['cache_ttl']) {
-            $cacheKey = empty($options) ? md5($block['id']) : md5($block['id'] . serialize($options));
-            /*
-            $cacheKey = 'b' . $cacheKey;
-            $cacheOptions = array(
-                'ttl'       => $block['cache_ttl'],
-                'namespace' => $block['module'] ?: 'system',
-            );
-            $blockData = Pi::service('cache')->getItem($cacheKey, $cacheOptions);
-            */
+            $cacheKey = empty($options)
+                ? md5($block['id']) : md5($block['id'] . serialize($options));
             $renderCache = Pi::service('render')->setType('block');
             $renderCache->meta('key', $cacheKey)
-                    ->meta('namespace', $block['module'] ?: 'system')
-                    ->meta('ttl', $block['cache_ttl']);
+                        ->meta('namespace', $block['module'] ?: 'system')
+                        ->meta('ttl', $block['cache_ttl']);
             $blockData = $renderCache->cachedContent();
             if (null !== $blockData) {
                 $blockData = json_decode($blockData, true);
@@ -179,17 +156,14 @@ class Block extends AbstractHelper
             if (false === $blockData) {
                 return false;
             }
-            /*
-            if ($cacheOptions) {
-                Pi::service('cache')->setItem($cacheKey, json_encode($blockData), $cacheOptions);
-            }
-            */
             if ($renderCache) {
                 $renderCache->saveCache(json_encode($blockData));
             }
         } else {
             if (Pi::service()->hasService('log')) {
-                Pi::service('log')->info(sprintf('Block "%s" is cached', $block['name']));
+                Pi::service('log')->info(
+                    sprintf('Block "%s" is cached', $block['name'])
+                );
             }
         }
 
@@ -201,7 +175,11 @@ class Block extends AbstractHelper
             if (!$block['template']) {
                 $template = 'module/system:block/dummy';
             } else {
-                $template = sprintf('module/%s:block/%s', $block['module'], $block['template']);
+                $template = sprintf(
+                    'module/%s:block/%s',
+                    $block['module'],
+                    $block['template']
+                );
                 /**#@+
                     * Preset variables
                     */
@@ -222,10 +200,12 @@ class Block extends AbstractHelper
     }
 
     /**
-     * return the content of the block for output
+     * Build the content of the block for output
      *
      * @param BlockRow $blockRow
-     * @return array|string Variable array for module blocks and string content for custom blocks
+     * @param array $configs
+     * @return array|string Variable array for module blocks
+     *      and string content for custom blocks
      */
     public function buildBlock(BlockRow $blockRow, $configs = array())
     {
@@ -239,13 +219,17 @@ class Block extends AbstractHelper
             if (!empty($configs)) {
                 $options = array_merge($options, $configs);
             }
-            $result = call_user_func_array($block['render'], array($options, $block['module']));
+            $result = call_user_func_array(
+                $block['render'],
+                array($options, $block['module'])
+            );
         // Custom block, return string
         } elseif ($isCustom) {
             switch ($block['type']) {
                 // carousel
                 case 'carousel':
-                    $items = empty($block['content']) ? false : json_decode($block['content'], true);
+                    $items = empty($block['content'])
+                        ? false : json_decode($block['content'], true);
                     if ($items) {
                         $result = array(
                             'items'     => $items,
@@ -259,18 +243,28 @@ class Block extends AbstractHelper
                     break;
                 // static HTML
                 case 'html':
-                    $result = Pi::service('markup')->render($block['content'], 'html');
+                    $result = Pi::service('markup')->render(
+                        $block['content'],
+                        'html'
+                    );
                     $result = $this->transliterateGlobals($result);
                     break;
                 // static mardown
                 case 'markdown':
-                    $result = Pi::service('markup')->render($block['content'], 'html', 'markdown');
+                    $result = Pi::service('markup')->render(
+                        $block['content'],
+                        'html',
+                        'markdown'
+                    );
                     $result = $this->transliterateGlobals($result);
                     break;
                 // static text
                 case 'text':
                 default:
-                    $result = Pi::service('markup')->render($block['content'], 'text');
+                    $result = Pi::service('markup')->render(
+                        $block['content'],
+                        'text'
+                    );
                     $result = $this->transliterateGlobals($result);
                     break;
             }
@@ -302,7 +296,8 @@ class Block extends AbstractHelper
                 continue;
             }
             $result[] = array(
-                'caption'   => !empty($tab['caption']) ? $tab['caption'] : $data['title'],
+                'caption'   => !empty($tab['caption'])
+                               ? $tab['caption'] : $data['title'],
                 'link'      => !empty($tab['link']) ? $tab['link'] : '',
                 'content'   => $data['content'],
             );
@@ -313,7 +308,8 @@ class Block extends AbstractHelper
 
 
     /**
-     * Transliterate global variables, allowed tags: %sitename%, %slogan%, %siteurl%
+     * Transliterate global variables, allowed tags:
+     * %sitename%, %slogan%, %siteurl%
      *
      * @param string $content
      * @return string

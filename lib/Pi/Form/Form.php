@@ -1,76 +1,86 @@
 <?php
 /**
- * Form class
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Pi\Form
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
+ * @package         Form
  */
+
 namespace Pi\Form;
 
 use Zend\Form\Form as ZendForm;
 
+/**
+ * Form class
+ *
+ * Added group support for rendering
+ *
+ * ```
+ *       array(
+ *          <group-name> => array(
+ *              'label'     => 'Group Label',
+ *              'elements'  => array('elementName', 'elementName',
+ *                  'elementName', <...>),
+ *          ),
+ *          <group-name> => array(
+ *              'label'     => 'Group Label',
+ *              'elements'  => array('elementName', 'elementName',
+ *                  'elementName', <...>),
+ *          ),
+ *      );
+ * ```
+ *
+ * {@inheritDoc}
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 class Form extends ZendForm
 {
     /**
      * Grouping field names for rendering
      * @var array
-     *       array(
-     *          'groupName' => array(
-     *              'label'     => 'Group Label',
-     *              'elements'  => array('elementName', 'elementName', 'elementName', ...),
-     *          ),
-     *          'groupName' => array(
-     *              'label'     => 'Group Label',
-     *              'elements'  => array('elementName', 'elementName', 'elementName', ...),
-     *          ),
-     *      );
      */
     protected $groups;
 
     /**
      * Constructor
      *
-     * @param null|string|int $name Optional name for the element
+     * {@inheritDoc}
      */
-    public function __construct($name = null)
+    public function __construct($name = null, $options = array())
     {
-        parent::__construct($name);
+        parent::__construct($name, $options);
         $this->init();
     }
 
     /**
-     * Prepare elements for the form, optional
-     */
-    public function init() {}
-
-    /**
-     * Retrieve composed form factory
-     *
-     * Lazy-loads one if none present.
-     *
-     * @return Factory
+     * {@inheritDoc}
      */
     public function getFormFactory()
     {
         if (null === $this->factory) {
             $this->setFormFactory(new Factory());
         }
+
         return $this->factory;
     }
 
     /**
-     * Get list of elements for form view
+     * Prepare elements for the form, optional
+     *
+     * @return void
+     */
+    public function init() {}
+
+    /**
+     * Get list of elements
+     *
+     * Element list associated with active, hidden, and submit
+     *
+     *  - active: string[]
+     *  - hidden: string[]
+     *  - submit: string
      *
      * @return array
      */
@@ -100,11 +110,12 @@ class Form extends ZendForm
      * Set grouped list
      *
      * @param array $groups
-     * @return Form
+     * @return $this
      */
     public function setGroups(array $groups)
     {
         $this->groups = $groups;
+
         return $this;
     }
 
@@ -120,8 +131,9 @@ class Form extends ZendForm
 
     /**
      * Get assembled message
-     * @param bool $OnlyHidden  Return only hidden field messages
-     * @param string $delimiter
+     *
+     * @param bool      $OnlyHidden  Return only hidden field messages
+     * @param string    $delimiter
      * @return string
      */
     public function getMessage($OnlyHidden = true, $delimiter = '; ')
@@ -132,11 +144,14 @@ class Form extends ZendForm
             if (!$messages) {
                 continue;
             }
-            if ($OnlyHidden && 'hidden' != $this->get($name)->getAttribute('type')) {
+            if ($OnlyHidden
+                && 'hidden' != $this->get($name)->getAttribute('type')
+            ) {
                 continue;
             }
             $list[] = implode($delimiter, array_values($messages));
         }
+
         return implode($delimiter, $list);
     }
 }

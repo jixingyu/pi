@@ -1,22 +1,5 @@
 <?php
-/**
- * Page route implementation
- *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Module\Page
- * @subpackage      Route
- * @version         $Id$
- */
+use Zend\EventManager\Event;
 
 namespace Module\Page\Route;
 
@@ -33,7 +16,7 @@ use Zend\Stdlib\RequestInterface as Request;
  */
 class Page extends Standard
 {
-    protected $prefix = '/page';
+    //protected $prefix = '/page';
 
     /**
      * Default values.
@@ -99,7 +82,8 @@ class Page extends Standard
             $matches['action'] = $action;
         }
 
-        return new RouteMatch(array_merge($this->defaults, $matches), $pathLength);
+        return new RouteMatch(array_merge($this->defaults, $matches),
+                              $pathLength);
     }
 
     /**
@@ -134,11 +118,15 @@ class Page extends Standard
         if (empty($url)) {
             $url = $action;
         } elseif (!empty($action)) {
-            $url = $action . $this->paramDelimiter . $url;
+            if ($action != 'index') {
+                $url = $action . $this->paramDelimiter . $url;
+            }
         } else {
             $url = 'view' . $this->paramDelimiter . $url;
         }
 
-        return $this->paramDelimiter . trim($this->prefix, $this->paramDelimiter) . $this->paramDelimiter . $url;
+        return $this->paramDelimiter
+            . trim($this->prefix, $this->paramDelimiter)
+            . $this->paramDelimiter . $url;
     }
 }

@@ -1,41 +1,41 @@
 <?php
 /**
- * Kernel persist
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @package         Pi\Application
- * @subpackage      Persist
- * @since           3.0
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Pi\Application\Persist;
 
+use Pi;
+
 /**
+ * Memcached storage
+ *
  * Note: this storage does not support namespace or tag
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
  */
 class MemcachedStorage extends AbstractStorage
 {
     /**
      * Server Values
      */
+    /** @var string */
     const SERVER_HOST = '127.0.0.1';
+
+    /** @var int */
     const SERVER_PORT =  11211;
+
+    /** @var int */
     const SERVER_WEIGHT  = 1;
 
     /**
      * Memcached object
      *
-     * @var mixed memcached object
+     * @var \memcached|null memcached object
      */
     protected $memcached;
 
@@ -49,44 +49,47 @@ class MemcachedStorage extends AbstractStorage
     public function __construct($options = array())
     {
         if (!extension_loaded('memcached')) {
-            throw new \Exception('The memcached extension must be loaded for using this model !');
+            throw new \Exception(
+                'The memcached extension must be loaded for using this model !'
+            );
         }
         $this->memcached = new \memcached;
         $this->memcached->addServer(
             isset($options['host']) ? $options['host'] : static::SERVER_HOST,
             isset($options['port']) ? $options['port'] : static::SERVER_PORT,
-            isset($options['weight']) ? $options['weight'] : static::SERVER_WEIGHT
+            isset($options['weight'])
+                ? $options['weight'] : static::SERVER_WEIGHT
         );
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function getType()
     {
         return 'memcached';
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function getEngine()
     {
         return $this->memcached;
     }
 
     /**
-     * Test if an item is available for the given id and (if yes) return it (false else)
-     *
-     * @param  string  $id                     Item id
-     * @return mixed|false Cached datas
+     * {@inheritDoc}
      */
     public function load($id)
     {
         $id = $this->prefix($id);
+
         return $this->memcached->get($id);
     }
 
     /**
-     * Save some data in a key
-     *
-     * @param  mixed $data      Data to put in cache
-     * @param  string $id       Store id
-     * @return boolean True if no problem
+     * {@inheritDoc}
      */
     public function save($data, $id, $ttl = 0)
     {
@@ -94,25 +97,22 @@ class MemcachedStorage extends AbstractStorage
         if (!($result = $this->memcached->add($id, $data, $ttl))) {
             $result = $this->memcached->set($id, $data, $ttl);
         }
+
         return $result;
     }
 
     /**
-     * Remove an item
-     *
-     * @param  string $id Data id to remove
-     * @return boolean True if ok
+     * {@inheritDoc}
      */
     public function remove($id)
     {
         $id = $this->prefix($id);
+        
         return $this->memcached->delete($id);
     }
 
     /**
-     * Clear cached entries
-     *
-     * @return boolean True if ok
+     * {@inheritDoc}
      */
     public function flush()
     {

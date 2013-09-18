@@ -1,21 +1,10 @@
 <?php
 /**
- * Pi module installer resource
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Pi\Application
- * @subpackage      Installer
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Pi\Application\Installer\Resource;
@@ -24,9 +13,10 @@ use Pi;
 use Pi\Acl\Acl as AclHandler;
 
 /**
- * Page configuration specs
- *  <code>
- *  return array(
+ * Page setup with configuration specs
+ *
+ * ```
+ *  array(
  *          // font mvc pages
  *          'front' => array(
  *              array(
@@ -34,7 +24,8 @@ use Pi\Acl\Acl as AclHandler;
  *                  'controller'    => 'controllerName',
  *                  'cache_ttl'     => 0,
  *                  'cache_level'   => '',
- *                  // Block inheritance: 1 - specified; 0 - inherite from parent
+ *                  // Block inheritance:
+ *                  // 1 - specified; 0 - inherite from parent
  *                  'block'         => 0,
  *                  // Permission with specific role access rules
  *                  'permission'    => array(
@@ -50,7 +41,8 @@ use Pi\Acl\Acl as AclHandler;
  *                  'action'        => 'actionName',
  *                  'cache_ttl'     => 60,
  *                  'cache_level'   => 'role',
- *                  // Block inheritance: 1 - specified; 0 - inherite from parent
+ *                  // Block inheritance:
+ *                  // 1 - specified; 0 - inherite from parent
  *                  'block'         => 1,
  *                  // Don't set permission
  *                  'permission'    => false,
@@ -90,7 +82,8 @@ use Pi\Acl\Acl as AclHandler;
  *                  'action'        => 'actionName',
  *                  'cache_ttl'  => 0,
  *                  'cache_level'   => '',
- *                  // Permission with dispatchable parent resource or named resource from different section/module
+ *                  // Permission with dispatchable parent resource
+ *                  // or named resource from different section/module
  *                  'permission'    => array(
  *                      'parent'        => array(
  *                          'section'   => 'admin',
@@ -122,26 +115,35 @@ use Pi\Acl\Acl as AclHandler;
  *          ),
  *          ...
  *  );
- *  </code>
+ * ```
+ *
  * Disable pages
- *  <code>
+ *
+ *  ```
  *  return false;
- *  </code>
+ *  ```
+ *
  * Disable a section
- *  <code>
+ *
+ *  ```
  *  return array(
  *      'front' => false,
  *      'admin' => array(
  *      ),
  *  );
- *  </code>
- */
-
-/**
- * Note: the installation uses Acl\Resource
+ *  ```
+ *
+ * @link Pi\Acl\Acl\Resource
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
  */
 class Page extends AbstractResource
 {
+    /**
+     * Canonize page config
+     *
+     * @param array $config
+     * @return array
+     */
     protected function canonizePage($config)
     {
         $moduleTitle = $this->event->getParam('title');
@@ -168,6 +170,9 @@ class Page extends AbstractResource
         return $config;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function installAction()
     {
         // Skip if pages disabled
@@ -176,7 +181,7 @@ class Page extends AbstractResource
         }
         $module = $this->event->getParam('module');
         //$moduleTitle = $this->event->getParam('title');
-        Pi::service('registry')->page->clear($module);
+        Pi::registry('page')->clear($module);
         $pages = $this->canonizePage($this->config);
 
         foreach (array_keys($pages) as $section) {
@@ -204,14 +209,16 @@ class Page extends AbstractResource
         };
 
         // Set module access for front
-        if (!empty($pages['front']) && !isset($pages['front'][$module]['permission']['access'])) {
+        if (!empty($pages['front'])
+            && !isset($pages['front'][$module]['permission']['access'])) {
             $pages['front'][$module]['permission']['access'] = array(
                 'member'    => 1,
                 'guest'     => 1
             );
         }
         // Set module access for admin
-        if (!empty($pages['admin']) && !isset($pages['admin'][$module]['permission']['access'])) {
+        if (!empty($pages['admin'])
+            && !isset($pages['admin'][$module]['permission']['access'])) {
             $pages['admin'][$module]['permission']['access'] = array(
                 'staff'     => 1
             );
@@ -222,7 +229,8 @@ class Page extends AbstractResource
                 $message = array();
                 $status = $this->insertPage($page, $message);
                 if (false === $status) {
-                    $message[] = sprintf('Page "%s" is not created.', $page['title']);
+                    $msg = 'Page "%s" is not created.';
+                    $message[] = sprintf($msg, $page['title']);
                     return array(
                         'status'    => false,
                         'message'   => $message
@@ -234,10 +242,13 @@ class Page extends AbstractResource
         return true;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function updateAction()
     {
         $module = $this->event->getParam('module');
-        Pi::service('registry')->page->clear($module);
+        Pi::registry('page')->clear($module);
         if ($this->skipUpgrade()) {
             return;
         }
@@ -254,7 +265,13 @@ class Page extends AbstractResource
         $rowset = $model->select(array('module' => $module));
         $pages_exist = array();
         foreach ($rowset as $page) {
-            $key = sprintf('%s:%s:%s:%s', $page['section'], $page['module'], $page['controller'], $page['action']);
+            $key = sprintf(
+                '%s:%s:%s:%s',
+                $page['section'],
+                $page['module'],
+                $page['controller'],
+                $page['action']
+            );
             $pages_exist[$key] = $page;
         }
 
@@ -272,9 +289,16 @@ class Page extends AbstractResource
                     }
                     $page['title'] = $pageName;
                 }
-                $controller = isset($page['controller']) ? $page['controller'] : '';
+                $controller = isset($page['controller'])
+                    ? $page['controller'] : '';
                 $action = isset($page['action']) ? $page['action'] : '';
-                $key = sprintf('%s:%s:%s:%s', $section, $page['module'], $controller, $action);
+                $key = sprintf(
+                    '%s:%s:%s:%s',
+                    $section,
+                    $page['module'],
+                    $controller,
+                    $action
+                );
                 //echo ' [' . $key . '] ';
                 if (isset($pages_exist[$key])) {
                     $page_exist = $pages_exist[$key];
@@ -286,11 +310,15 @@ class Page extends AbstractResource
                         $data['title'] = $page['title'];
                     }
                     if (!empty($data)) {
-                        $status = $model->update($data, array('id' => $page_exist['id']));
+                        $status = $model->update(
+                            $data,
+                            array('id' => $page_exist['id'])
+                        );
                         if (!$status) {
+                            $msg = 'Page "%s" is not updated.';
                             return array(
                                 'status'    => false,
-                                'message'   => sprintf('Page "%s" is not updated.', $page['title'])
+                                'message'   => sprintf($msg, $page['title'])
                             );
                         }
                     }
@@ -301,7 +329,10 @@ class Page extends AbstractResource
                 $message = array();
                 $status = $this->insertPage($page, $message);
                 if (!$status) {
-                    $message[] = sprintf('Page "%s" is not created.', $page['title']);
+                    $message[] = sprintf(
+                        'Page "%s" is not created.',
+                        $page['title']
+                    );
                     return array(
                         'status'    => false,
                         'message'   => $message
@@ -310,26 +341,32 @@ class Page extends AbstractResource
             }
         }
 
-
         foreach ($pages_exist as $key => $page) {
             if ($page['custom'] && !$diablePage) continue;
             $message = array();
             $status = $this->deletePage($page, $message);
             if (false === $status) {
-                $message[] = sprintf('Deprecated page "%s" is not deleted.', $page['title']);
+                $message[] = sprintf(
+                    'Deprecated page "%s" is not deleted.',
+                    $page['title']
+                );
                 return array(
                     'status'    => false,
                     'message'   => $message
                 );
             }
         }
+
         return true;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function uninstallAction()
     {
         $module = $this->event->getParam('module');
-        Pi::service('registry')->page->clear($module);
+        Pi::registry('page')->clear($module);
 
         $model = Pi::model('page');
         $rowset = $model->select(array('module' => $module));
@@ -337,17 +374,32 @@ class Page extends AbstractResource
             $message = array();
             $this->deletePage($row, $message);
         }
+
         return;
     }
 
+    /**
+     * Insert a page
+     *
+     * @param array $page
+     * @param array $message
+     * @return bool
+     */
     protected function insertPage($page, &$message)
     {
         $module = $this->event->getParam('module');
         $modelPage = Pi::model('page');
         $modelResource = Pi::model('acl_resource');
         $modelRule = Pi::model('acl_rule');
-        $columnsPage = array('title', 'section', 'module', 'controller', 'action', 'cache_ttl', 'cache_level', 'block', 'custom');
-        $columnsResource = array('section', 'name', 'item', 'title', 'module', 'type');
+        $columnsPage = array(
+            'title',
+            'section', 'module', 'controller', 'action',
+            'cache_ttl', 'cache_level', 'block', 'custom'
+        );
+        $columnsResource = array(
+            'section', 'name', 'item', 'title',
+            'module', 'type'
+        );
 
         $data = array();
         foreach ($page as $col => $val) {
@@ -419,19 +471,34 @@ class Page extends AbstractResource
         // Add resource
         $resourceId = $modelResource->add($resource, $parent);
         if (!$resourceId) {
-            $message[] = sprintf('Resource "%s" is not created.', $resource['name']);
+            $message[] = sprintf(
+                'Resource "%s" is not created.',
+                $resource['name']
+            );
             return false;
         }
         // Set rules of accessing the resource by each role
         if (isset($page['permission']['access'])) {
             foreach ($page['permission']['access'] as $role => $rule) {
-                AclHandler::addRule($rule, $role, $resource['section'], $module, $resourceId);
+                AclHandler::addRule(
+                    $rule,
+                    $role,
+                    $resource['section'],
+                    $module,
+                    $resourceId
+                );
             }
         }
 
         return true;
     }
 
+    /**
+     * Delete a page
+     * @param int|Pi\Application\Model\Model $page
+     * @param array $message
+     * @return bool
+     */
     protected function deletePage($page, &$message)
     {
         $modelPage = Pi::model('page');
@@ -452,7 +519,10 @@ class Page extends AbstractResource
         );
         $resourceRow = $modelResource->select($where)->current();
         if (!$resourceRow) {
-            //trigger_error('Resource for page ' . $pageRow->id . ' is not found, perhaps it is deleted by its parent page resource.', E_USER_NOTICE);
+            //trigger_error('Resource for page ' . $pageRow->id
+            //. ' is not found, perhaps it is deleted by'
+            //. ' its parent page resource.',
+            //E_USER_NOTICE);
             return;
         }
         $resourceRows = $modelResource->getChildren($resourceRow, array('id'));
@@ -460,7 +530,10 @@ class Page extends AbstractResource
         foreach ($resourceRows as $row) {
             $resources[] = $row->id;
         }
-        $modelRule->delete(array('section' => $pageRow->section, 'resource' => $resources));
+        $modelRule->delete(array(
+            'section'   => $pageRow->section,
+            'resource'  => $resources,
+        ));
         $modelResource->remove($resourceRow, true);
 
         //$pageRow->delete();

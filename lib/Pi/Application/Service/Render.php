@@ -1,21 +1,11 @@
 <?php
 /**
- * Render cache service
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @package         Pi\Application
- * @subpackage      Service
- * @since           3.0
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
+ * @package         Service
  */
 
 namespace Pi\Application\Service;
@@ -26,7 +16,8 @@ use Zend\Cache\Storage\Adapter\AbstractAdapter;
 /**
  * Cache handler for view rendering
  *
- * @see Pi\Application\Resource\Cache
+ * @see Pi\Application\Bootstrap\Resource\Render
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
  */
 class Render extends AbstractService
 {
@@ -60,6 +51,7 @@ class Render extends AbstractService
 
     /**
      * Cache meta
+     *
      * @var array
      */
     protected $meta = array(
@@ -71,12 +63,14 @@ class Render extends AbstractService
 
     /**
      * Cached contents
+     *
      * @var array
      */
     protected $cachedContent = array();
 
     /**
      * Generated content
+     *
      * @var string
      */
     protected $content;
@@ -100,20 +94,22 @@ class Render extends AbstractService
      */
     protected function canonizeKey($key)
     {
-        return Pi::service('theme')->current() . '_' . $this->getType() . '_' . $key;
+        return Pi::service('theme')->current()
+            . '_' . $this->getType() . '_' . $key;
     }
 
     /**
      * Set cache storage
      *
      * @param AbstractAdapter
-     * @return Render
+     * @return self
      */
     public function setStorage($storage)
     {
         if ($storage instanceof AbstractAdapter) {
             $this->storage = $storage;
         }
+
         return $this;
     }
 
@@ -125,7 +121,8 @@ class Render extends AbstractService
     public function getStorage()
     {
         if (!$this->storage instanceof AbstractAdapter) {
-            $storage = !empty($this->options['storage']) ? $this->options['storage'] : ($this->storage ?: '');
+            $storage = !empty($this->options['storage'])
+                ? $this->options['storage'] : ($this->storage ?: '');
             if ($storage) {
                 $storage = Pi::service('cache')->loadStorage($storage);
             } else {
@@ -141,7 +138,7 @@ class Render extends AbstractService
      * Set rendering type
      *
      * @param string $type
-     * @return Render
+     * @return self
      */
     public function setType($type)
     {
@@ -163,28 +160,30 @@ class Render extends AbstractService
     /**
      * Check if content is allowed to cache in a specific context
      *
-     * @param boolean $flag
-     * @return boolean
+     * @param bool $flag
+     * @return bool
      */
     public function isCachable($flag = null)
     {
         if (null !== $flag) {
             $this->cachable = (bool) $flag;
         }
+
         return $this->cachable;
     }
 
     /**
      * Check if cache is opened in a specific context
      *
-     * @param boolean $flag
-     * @return boolean
+     * @param bool $flag
+     * @return bool
      */
     public function isOpened($flag = null)
     {
         if (null !== $flag) {
             $this->opened = (bool) $flag;
         }
+
         return $this->opened;
     }
 
@@ -199,7 +198,7 @@ class Render extends AbstractService
         if (!$this->isCachable() || null === $this->cachedContent()) {
             $isCached = false;
         }
-        // TODO
+
         return $isCached;
     }
 
@@ -208,7 +207,7 @@ class Render extends AbstractService
      *
      * @param string        $meta
      * @param mixed|null    $value
-     * @return Render|mixed
+     * @return self|mixed
      */
     public function meta($meta, $value = null)
     {
@@ -222,6 +221,7 @@ class Render extends AbstractService
             $value = $this->canonizeKey($value);
         }
         $this->meta[$meta] = $value;
+
         return $this;
     }
 
@@ -229,11 +229,12 @@ class Render extends AbstractService
      * set generated content
      *
      * @param string $content
-     * @return Render
+     * @return self
      */
     public function setContent($content)
     {
         $this->content = $content;
+
         return $this;
     }
 
@@ -256,8 +257,13 @@ class Render extends AbstractService
     {
         $key = $this->meta['key'];
         if (!isset($this->cachedContent[$key])) {
-            $this->cachedContent[$key] = Pi::service('cache')->getItem($this->meta['key'], $this->meta, $this->getStorage());
+            $this->cachedContent[$key] = Pi::service('cache')->getItem(
+                $this->meta['key'],
+                $this->meta,
+                $this->getStorage()
+            );
         }
+
         return $this->cachedContent[$key];
     }
 
@@ -265,43 +271,64 @@ class Render extends AbstractService
      * Save content to cache storage
      *
      * @param string $content
-     * @return Render
+     * @return self
      */
     public function saveCache($content = null)
     {
         $content = (null !== $content) ? $content : $this->content;
         if (null !== $content) {
-            Pi::service('cache')->setItem($this->meta['key'], $content, $this->meta, $this->getStorage());
+            Pi::service('cache')->setItem(
+                $this->meta['key'],
+                $content,
+                $this->meta,
+                $this->getStorage()
+            );
         }
         $this->opened = false;
+
         return $this;
     }
 
     /**
      * Flush render cache: a specific item, specified namespace or all
      *
-     * @param string|null $namespace    Namespace for cache storage, usually module name
+     * @param string|null $namespace Namespace for cache storage,
+     *      usually module name
      * @param string|null $key
-     * @return Render
+     * @return self
      */
     public function flushCache($namespace = null, $key = null)
     {
         // Remove an item
         if (null !== $key) {
-            Pi::service('cache')->removeItem($namespace, $key, $this->getStorage());
+            Pi::service('cache')->removeItem(
+                $namespace,
+                $key,
+                $this->getStorage()
+            );
+
             return $this;
         }
 
         // Flush by namespace
         if (null !== $namespace) {
-            Pi::service('cache')->clearByNamespace($namespace, $this->getStorage());
+            Pi::service('cache')->clearByNamespace(
+                $namespace,
+                $this->getStorage()
+            );
+
             return $this;
         }
 
         // Flush all by modules
         $modules = Pi::service('module')->meta();
         foreach (array_keys($modules) as $module) {
-            Pi::service('cache')->clearByNamespace($module, $this->getStorage());
+            Pi::service('cache')->clearByNamespace(
+                $module,
+                $this->getStorage()
+            );
         }
+
+        return $this;
     }
 }

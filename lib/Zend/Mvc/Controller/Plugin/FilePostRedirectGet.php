@@ -246,7 +246,8 @@ class FilePostRedirectGet extends AbstractPlugin
                 $messages = $input->getMessages();
                 if (is_array($value) && $input instanceof FileInput && empty($messages)) {
                     $rawValue = $input->getRawValue();
-                    if (   (isset($rawValue['error'])    && $rawValue['error']    !== UPLOAD_ERR_NO_FILE)
+                    if (
+                        (isset($rawValue['error']) && $rawValue['error'] !== UPLOAD_ERR_NO_FILE)
                         || (isset($rawValue[0]['error']) && $rawValue[0]['error'] !== UPLOAD_ERR_NO_FILE)
                     ) {
                         return $value;
@@ -294,14 +295,17 @@ class FilePostRedirectGet extends AbstractPlugin
      */
     protected function redirect($redirect, $redirectToUrl)
     {
-        $controller = $this->getController();
-        $params     = array();
+        $controller         = $this->getController();
+        $params             = array();
+        $options            = array();
+        $reuseMatchedParams = false;
 
         if (null === $redirect) {
             $routeMatch = $controller->getEvent()->getRouteMatch();
 
             $redirect = $routeMatch->getMatchedRouteName();
-            $params   = $routeMatch->getParams();
+            //null indicates to redirect for self.
+            $reuseMatchedParams = true;
         }
 
         if (method_exists($controller, 'getPluginManager')) {
@@ -320,7 +324,7 @@ class FilePostRedirectGet extends AbstractPlugin
         }
 
         if ($redirectToUrl === false) {
-            $response = $redirector->toRoute($redirect, $params);
+            $response = $redirector->toRoute($redirect, $params, $options, $reuseMatchedParams);
             $response->setStatusCode(303);
             return $response;
         }

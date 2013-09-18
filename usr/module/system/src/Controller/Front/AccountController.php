@@ -1,20 +1,10 @@
 <?php
 /**
- * User account controller
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Module\System
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Module\System\Controller\Front;
@@ -25,53 +15,77 @@ use Module\System\Form\AccountForm;
 use Module\System\Form\AccountFilter;
 
 /**
+ * User account controller
+ *
  * Feature list:
+ *
  * 1. Personal account
  * 2. Edit account
  * 3. Entries to other actions
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
  */
 class AccountController extends ActionController
 {
+    /**
+     * Columns of user account model
+     * @var string[]
+     */
     protected $columns = array(
         'name', 'identity', 'email'
     );
 
+    /**
+     * User account data
+     *
+     * @return void
+     */
     public function indexAction()
     {
-        $identity = Pi::service('authentication')->getIdentity();
+        $identity = Pi::service('user')->getIdentity();
         // Redirect login page if not logged in
         if (!$identity) {
             $this->redirect()->toRoute('', array('controller' => 'login'));
             return;
         }
-        $row = Pi::model('user')->find($identity, 'identity');
-        $role = Pi::model('user_role')->find($row->id, 'user')->role;
+        //$user = Pi::api('system', 'user')->getUser($identity, 'identity');
+        //$role = $user->role();
+        $row = Pi::model('user_account')->find($identity);
+        //$role = Pi::model('user_role')->find($row->id, 'user')->role;
+        $role = Pi::api('system', 'user')->getRole($row['id'], 'front');
         $roleRow = Pi::model('acl_role')->find($role, 'name');
         $user = array(
-            __('ID')        => $row->id,
-            __('Identity')  => $row->identity,
-            __('Email')     => $row->email,
-            __('Name')      => $row->name,
+            __('ID')        => $row['id'],
+            __('Identity')  => $row['identity'],
+            __('Email')     => $row['email'],
+            __('Name')      => $row['name'],
             __('Role')      => __($roleRow->title),
         );
+        $avatar = Pi::user()->avatar($row['id']);
 
         $title = __('User account');
         $this->view()->assign(array(
-            'title' => $title,
-            'user'  => $user,
+            'title'     => $title,
+            'user'      => $user,
+            'avatar'    => $avatar,
         ));
         $this->view()->setTemplate('account');
     }
 
+    /**
+     * Edit user account
+     *
+     * @return void
+     */
     public function editAction()
     {
-        $identity = Pi::service('authentication')->getIdentity();
+        $identity = Pi::service('user')->getIdentity();
         // Redirect login page if not logged in
         if (!$identity) {
             $this->redirect()->toRoute('', array('controller' => 'login'));
             return;
         }
-        $row = Pi::model('user')->find($identity, 'identity');
+        $row = Pi::model('user_account')->find($identity);
         $form = new AccountForm('user-edit', $row);
         if ($this->request->isPost()) {
             $data = $this->request->getPost();
@@ -84,17 +98,17 @@ class AccountController extends ActionController
                         unset($values[$key]);
                     }
                 }
-                $identityChanged = ($row->identity !== $values['identity']) ? true : false;
+                $identityChanged = ($row->identity !== $values['identity'])
+                    ? true : false;
                 $row->assign($values);
                 $row->save();
                 if ($row->id) {
                     $message = __('User data saved successfully.');
                     if ($identityChanged) {
                         Pi::service('authentication')->clearIdentity();
-                        //Pi::service('authentication')->wakeup($row->identity);
                     }
 
-                    $this->redirect()->toRoute('', array('action' => 'index'));
+                    $this->redirect()->toRoute('', array('action' => 'index'), $message);
                     return;
                 } else {
                     $message = __('User data not saved.');
@@ -103,7 +117,6 @@ class AccountController extends ActionController
                 $message = __('Invalid data, please check and re-submit.');
             }
         } else {
-            //$form->setAttribute('action', $this->url('', array('action' => 'edit')));
             $message = '';
         }
 

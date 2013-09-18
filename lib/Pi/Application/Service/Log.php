@@ -1,24 +1,15 @@
 <?php
 /**
- * Pi Engine logging service
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @package         Pi\Application
- * @subpackage      Service
- * @since           3.0
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
+ * @package         Service
  */
 
 namespace Pi\Application\Service;
+
 use Pi;
 use Pi\Log\Logger;
 use Pi\Log\ErrorHandler;
@@ -27,20 +18,41 @@ use Pi\Log\Profiler;
 use Pi\Log\DbProfiler;
 use Pi\Log\Writer\Debugger;
 
+/**
+ * Logging service
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 class Log extends AbstractService
 {
+    /**
+     * {@inheritDoc}
+     */
     protected $fileIdentifier = 'log';
 
     /**
      * Whether or not to the service is active
-     * @var boolean
+     *
+     * @var bool
      */
     protected $active;
+
+    /** @var Debugger Debugger writer */
     protected $debugger;
+
+    /** @var Logger Log handler */
     protected $logger;
+
+    /** @var ErrorHandler Error handler */
     protected $errorHandler;
+
+    /** @var ExceptionHandler Exception handler */
     protected $exceptionHandler;
+
+    /** @var Profiler Profiler writer */
     protected $profiler;
+
+    /** @var DbProfiler DbProfiler writer */
     protected $dbProfiler;
 
     /**
@@ -68,7 +80,9 @@ class Log extends AbstractService
         }
         // Register exception handler
         if (isset($this->options['exception_handler'])) {
-            $this->registerExceptionHandler($this->options['exception_handler']);
+            $this->registerExceptionHandler(
+                $this->options['exception_handler']
+            );
         }
         // Set profiler
         if (isset($this->options['profiler'])) {
@@ -82,6 +96,8 @@ class Log extends AbstractService
 
     /**
      * Shutdown function, will be triggered by Pi::shutdown()
+     *
+     * @return void
      */
     public function shutdown()
     {
@@ -108,7 +124,7 @@ class Log extends AbstractService
     }
 
     /**
-     * Enable/disable or get activity
+     * Enable/disable or get activation
      *
      * @param bool|null $flag
      * @return bool
@@ -125,12 +141,32 @@ class Log extends AbstractService
             }
         } elseif (null === $this->active) {
             if (!empty($this->options['ip'])) {
-                $this->active = (bool) Pi::service('security')->ip(array('good' => $this->options['ip']));
+                $this->active = (bool) Pi::service('security')->ip(array(
+                    'good' => $this->options['ip'],
+                ));
             } else {
                 $this->active = true;
             }
         }
+
         return $this->active;
+    }
+
+    /**
+     * Enable/disable debugger
+     *
+     * @param bool $flag
+     * @return bool|null Return previous muted value
+     *      or null if no debugger available
+     */
+    public function mute($flag = true)
+    {
+        $muted = null;
+        if ($this->debugger) {
+            $muted = $this->debugger->mute($flag);
+        }
+
+        return $muted;
     }
 
     /**
@@ -152,6 +188,7 @@ class Log extends AbstractService
             }
             $this->logger = new Logger($options);
         }
+
         return $this->logger;
     }
 
@@ -168,8 +205,13 @@ class Log extends AbstractService
             return $this;
         }
         if (null === $this->debugger && isset($this->options['debugger'])) {
-            if (!isset($this->options['debugger']['active']) || false !== $this->options['debugger']['active']) {
-                $this->debugger = $this->logger()->writerPlugin('debugger', $this->options['debugger']);
+            if (!isset($this->options['debugger']['active'])
+                || false !== $this->options['debugger']['active']
+            ) {
+                $this->debugger = $this->logger()->writerPlugin(
+                    'debugger',
+                    $this->options['debugger']
+                );
                 $this->logger()->addWriter($this->debugger);
             } else {
                 $this->debugger = false;
@@ -192,7 +234,9 @@ class Log extends AbstractService
             return $this;
         }
         if (null === $this->profiler && isset($this->options['profiler'])) {
-            if (!isset($this->options['profiler']['active']) || false !== $this->options['profiler']['active']) {
+            if (!isset($this->options['profiler']['active'])
+                || false !== $this->options['profiler']['active']
+            ) {
                 $this->profiler = new Profiler($this->options['profiler']);
                 if ($this->debugger()) {
                     $this->profiler->addWriter($this->debugger());
@@ -218,9 +262,15 @@ class Log extends AbstractService
             $this->dbProfiler = $dbProfiler;
             return $this;
         }
-        if (null === $this->dbProfiler && isset($this->options['db_profiler'])) {
-            if (!isset($this->options['db_profiler']['active']) || false !== $this->options['db_profiler']['active']) {
-                $this->dbProfiler = new DbProfiler($this->options['db_profiler']);
+        if (null === $this->dbProfiler
+            && isset($this->options['db_profiler'])
+        ) {
+            if (!isset($this->options['db_profiler']['active'])
+                || false !== $this->options['db_profiler']['active']
+            ) {
+                $this->dbProfiler = new DbProfiler(
+                    $this->options['db_profiler']
+                );
                 if ($this->debugger()) {
                     $this->dbProfiler->addWriter($this->debugger());
                 }
@@ -228,6 +278,7 @@ class Log extends AbstractService
                 $this->dbProfiler = false;
             }
         }
+
         return $this->dbProfiler;
     }
 
@@ -241,6 +292,7 @@ class Log extends AbstractService
     {
         $this->errorHandler = new ErrorHandler($options);
         $this->errorHandler->register($this->logger());
+
         return $this;
     }
 
@@ -254,6 +306,7 @@ class Log extends AbstractService
     {
         $this->exceptionHandler = new ExceptionHandler($options);
         $this->exceptionHandler->register($this->logger());
+
         return $this;
     }
 
@@ -266,9 +319,10 @@ class Log extends AbstractService
     public function db($info)
     {
         if (!$this->active()) {
-            return;
+            return $this;
         }
         $this->dbProfiler() ? $this->dbProfiler()->log($info) : null;
+
         return $this;
     }
 
@@ -281,9 +335,10 @@ class Log extends AbstractService
     public function start($name = 'Pi Engine')
     {
         if (!$this->active()) {
-            return;
+            return $this;
         }
         $this->profiler() ? $this->profiler()->start($name) : null;
+
         return $this;
     }
 
@@ -296,30 +351,33 @@ class Log extends AbstractService
     public function end($name = 'Pi Engine')
     {
         if (!$this->active()) {
-            return;
+            return $this;
         }
         $this->profiler() ? $this->profiler()->end($name) : null;
+
         return $this;
     }
 
     /**
      * Undefined method handler allows a shortcut:
-     *   $log->err('message')
+     *   `$log->err('message')`
      * or
-     *   $log->log('message', 'err')
+     *   `$log->log('message', 'err')`
      *
-     * @param  string  $method  priority name
-     * @param  string  $params  message to log
+     * @param  string $method  priority name
+     * @param  array  $args
+     *
      * @return void
      */
     public function __call($method, $args)
     {
         if (!$this->active()) {
-            return;
+            return $this;
         }
         if (method_exists($this->logger, $method)) {
             call_user_func_array(array($this->logger, $method), $args);
         }
+
         return $this;
     }
 }

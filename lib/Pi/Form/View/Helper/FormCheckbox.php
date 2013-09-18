@@ -1,21 +1,11 @@
 <?php
 /**
- * Form Checkbox view helper
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Pi\Form
- * @subpackage      View
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
+ * @package         Form
  */
 
 namespace Pi\Form\View\Helper;
@@ -26,48 +16,65 @@ use Zend\Form\Exception;
 use Zend\Form\View\Helper\FormInput;
 use Zend\Form\View\Helper\FormLabel;
 
+/**
+ * Checkbox element helper
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 class FormCheckbox extends FormInput
 {
+    /**
+     * Label position of append
+     *
+     * @var string
+     */
     const LABEL_APPEND  = 'append';
+
+    /**
+     * Label position of prepend
+     *
+     * @var string
+     */
     const LABEL_PREPEND = 'prepend';
 
     /**
-     * @var boolean
+     * To render hidden element
+     *
+     * @var bool
      */
     protected $useHiddenElement = true;
 
-    /**
-     * @var FormLabel
-     */
+    /** @var FormLabel Lable render helper */
     protected $labelHelper;
 
-    /**
-     * @var string
-     */
+    /** @var string Label position */
     protected $labelPosition = self::LABEL_APPEND;
 
     /**
-     * @var array
+     * @var array Label attributes
      */
     protected $labelAttributes = array(
         'class' => 'checkbox',
     );
 
     /**
-     * Set value for labelPosition
+     * Set value for label position
      *
-     * @param  mixed labelPosition
-     * @return $this
+     * @param  string labelPosition
+     * @return self
      */
     public function setLabelPosition($labelPosition)
     {
         $labelPosition = strtolower($labelPosition);
-        if (!in_array($labelPosition, array(static::LABEL_APPEND, static::LABEL_PREPEND))) {
+        if (!in_array(
+            $labelPosition,
+            array(static::LABEL_APPEND, static::LABEL_PREPEND)
+        )) {
             throw new Exception\InvalidArgumentException(sprintf(
-                '%s expects either %s::LABEL_APPEND or %s::LABEL_PREPEND; received "%s"',
+                '%s expects either %s or %s; received "%s"',
                 __METHOD__,
-                __CLASS__,
-                __CLASS__,
+                static::LABEL_APPEND,
+                static::LABEL_PREPEND,
                 (string) $labelPosition
             ));
         }
@@ -90,11 +97,12 @@ class FormCheckbox extends FormInput
      * Sets the attributes applied to option label.
      *
      * @param  array|null $attributes
-     * @return FormMultiCheckbox
+     * @return self
      */
     public function setLabelAttributes($attributes)
     {
         $this->labelAttributes = $attributes;
+
         return $this;
     }
 
@@ -112,7 +120,7 @@ class FormCheckbox extends FormInput
      * Returns the option for prefixing the element with a hidden element
      * for the unset value.
      *
-     * @return boolean
+     * @return bool
      */
     public function getUseHiddenElement()
     {
@@ -123,12 +131,13 @@ class FormCheckbox extends FormInput
      * Sets the option for prefixing the element with a hidden element
      * for the unset value.
      *
-     * @param  boolean $useHiddenElement
-     * @return FormMultiCheckbox
+     * @param  bool $useHiddenElement
+     * @return self
      */
     public function setUseHiddenElement($useHiddenElement)
     {
         $this->useHiddenElement = (bool) $useHiddenElement;
+
         return $this;
     }
 
@@ -144,7 +153,8 @@ class FormCheckbox extends FormInput
     {
         if (!$element instanceof CheckboxElement) {
             throw new Exception\InvalidArgumentException(sprintf(
-                '%s requires that the element is of type Zend\Form\Element\Checkbox',
+                '%s requires that the element is of type'
+                . ' Zend\Form\Element\Checkbox',
                 __METHOD__
             ));
         }
@@ -152,7 +162,8 @@ class FormCheckbox extends FormInput
         $name = $element->getName();
         if (empty($name) && $name !== 0) {
             throw new Exception\DomainException(sprintf(
-                '%s requires that the element has an assigned name; none discovered',
+                '%s requires that the element has an assigned name;'
+                . ' none discovered',
                 __METHOD__
             ));
         }
@@ -184,7 +195,8 @@ class FormCheckbox extends FormInput
         }
 
         $label = $element->getAttribute('description') ?: $element->getLabel();
-        $labelAttributes = $this->labelAttributes ?: $element->getLabelAttributes();
+        $labelAttributes = $this->labelAttributes
+                ?: $element->getLabelAttributes();
 
         if (null !== ($translator = $this->getTranslator())) {
             $label = $translator->translate(
@@ -206,7 +218,8 @@ class FormCheckbox extends FormInput
         }
 
         // Render hidden element
-        $useHiddenElement = (null !== $this->useHiddenElement) ? $this->useHiddenElement
+        $useHiddenElement = (null !== $this->useHiddenElement)
+            ? $this->useHiddenElement
             : (method_exists($element, 'useHiddenElement')
                 ? $element->useHiddenElement()
                 : false);

@@ -127,7 +127,7 @@ class Factory
      *
      * @param string $filename
      * @param array|Config $config
-     * @return boolean TRUE on success | FALSE on failure
+     * @return bool TRUE on success | FALSE on failure
      * @throws Exception\RuntimeException
      * @throws Exception\InvalidArgumentException
      */
@@ -142,8 +142,8 @@ class Factory
             );
         }
 
-        $extension          = substr(strrchr($filename, '.'), 1);
-        $directory          = dirname($filename);
+        $extension = substr(strrchr($filename, '.'), 1);
+        $directory = dirname($filename);
 
         if (!is_dir($directory)) {
             throw new Exception\RuntimeException(
@@ -256,7 +256,7 @@ class Factory
      *
      * @param string $extension
      * @param string|Writer\AbstractWriter $writer
-     * @throw Exception\InvalidArgumentException
+     * @throws Exception\InvalidArgumentException
      * @return void
      */
     public static function registerWriter($extension, $writer)

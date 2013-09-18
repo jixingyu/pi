@@ -1,21 +1,10 @@
 <?php
 /**
- * Action controller class
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Module\Widget
- * @subpackage      Controller
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Module\Widget\Controller\Admin;
@@ -45,7 +34,7 @@ abstract class WidgetController extends ActionController
         $widgetMeta = $block['content'];
         $block['content'] = $this->canonizeContent($block['content']);
 
-        $result = Pi::service('api')->system(array('block', 'add'), $block);
+        $result = Pi::api('system', 'block')->add($block);
         $id = $result['root'];
         if ($id) {
             $widget = array(
@@ -59,9 +48,10 @@ abstract class WidgetController extends ActionController
             $row->save();
             if ($row->id) {
                 $status = 1;
-                Pi::service('registry')->block->clear($module);
+                Pi::registry('block')->clear($module);
             }
         }
+
         return $status;
     }
 
@@ -73,7 +63,10 @@ abstract class WidgetController extends ActionController
             unset($block['type']);
         }
 
-        $result = Pi::service('api')->system(array('block', 'update'), $widgetRow->block, $block);
+        $result = Pi::api('system', 'block')->update(
+            $widgetRow->block,
+            $block
+        );
         $status = $result['status'];
         if ($status) {
             $widgetRow->name = $block['name'];
@@ -81,6 +74,7 @@ abstract class WidgetController extends ActionController
             $widgetRow->time = time();
             $widgetRow->save();
         }
+
         return $status;
     }
 
@@ -97,14 +91,16 @@ abstract class WidgetController extends ActionController
             $status = 0;
             $message = __('The widget does not exist.');
         } else {
-            $result = Pi::service('api')->system(array('block', 'delete'), $row->block, true);
+            $result = Pi::api('system', 'block')->delete($row->block, true);
             extract($result);
             if ($status) {
                 $row->delete();
-                Pi::service('registry')->block->clear($this->getModule());
-                $message = sprintf(__('The widget "%s" is uninstalled.'), $row->name);
+                Pi::registry('block')->clear($this->getModule());
+                $message = sprintf(__('The widget "%s" is uninstalled.'),
+                                   $row->name);
             } else {
-                $message = sprintf(__('The widget "%s" is not uninstalled.'), $row->name);
+                $message = sprintf(__('The widget "%s" is not uninstalled.'),
+                                   $row->name);
             }
         }
 
@@ -136,7 +132,8 @@ abstract class WidgetController extends ActionController
                 $row = $this->getModel('widget')->find($id);
                 $status = $this->updateBlock($row, $values);
             } else {
-                $values['type'] = !empty($values['type']) ? $values['type'] : $this->type;
+                $values['type'] = !empty($values['type'])
+                    ? $values['type'] : $this->type;
                 $status = $this->addBlock($values);
             }
 
@@ -160,7 +157,8 @@ abstract class WidgetController extends ActionController
             $widgets[$row->block] = $row->toArray();
         }
         if ($widgets) {
-            $blocks = Pi::model('block_root')->select(array('id' => array_keys($widgets)))->toArray();
+            $blocks = Pi::model('block_root')
+                ->select(array('id' => array_keys($widgets)))->toArray();
             foreach ($blocks as $block) {
                 $widgets[$block['id']]['block'] = $block;
             }
@@ -179,13 +177,16 @@ abstract class WidgetController extends ActionController
             $status = $this->processPost($form);
             if ($status > 0) {
                 $message = __('Block data saved successfully.');
-                $this->jump(array('action' => 'index', 'name' => ''), $message);
+                $this->jump(array('action' => 'index', 'name' => ''),
+                            $message);
+
                 return;
             } elseif ($status < 0) {
                 $message = __('Block data not saved.');
             } else {
                 $formMessage = $form->getMessage();
-                $message = $formMessage ?: __('Invalid data, please check and re-submit.');
+                $message = $formMessage
+                    ?: __('Invalid data, please check and re-submit.');
             }
             $content = $this->request->getPost('content');
             $content = $content ? json_decode($content, true) : array();
@@ -210,7 +211,9 @@ abstract class WidgetController extends ActionController
             $status = $this->processPost($form);
             if ($status > 0) {
                 $message = __('Block data saved successfully.');
-                $this->jump(array('action' => 'index', 'name' => ''), $message);
+                $this->jump(array('action' => 'index', 'name' => ''),
+                            $message);
+
                 return;
             } elseif ($status < 0) {
                 $message = __('Block data not saved.');
@@ -224,8 +227,7 @@ abstract class WidgetController extends ActionController
             $content = $row->meta;
 
             $blockRow = Pi::model('block_root')->find($row->block);
-
-            $values = $blockRow->toArray();
+            $values = $this->prepareFormValues($blockRow);
             $values['id'] = $id;
             $form->setData($values);
             $message = '';
@@ -248,5 +250,10 @@ abstract class WidgetController extends ActionController
     protected function canonizeContent($content)
     {
         return $content;
+    }
+
+    protected function prepareFormValues($blockRow)
+    {
+        return $blockRow->toArray();
     }
 }

@@ -1,31 +1,30 @@
 <?php
 /**
- * Memecache service
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @package         Pi\Application
- * @subpackage      Service
- * @since           3.0
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
+ * @package         Service
  */
 
 namespace Pi\Application\Service;
-use Pi,
-    Exception,
-    Memcache as MemcacheExtension;
 
+use Pi;
+use Exception;
+use Memcache as MemcacheExtension;
+
+/**
+ * Memcache service
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 class Memcache extends AbstractService
 {
+    /** @var array Instances */
     protected static $instances = array();
+
+    /** @var array Default options */
     protected $defaultOptions = array(
         'port'              => 11211,
         'persistent'        => true,
@@ -36,6 +35,12 @@ class Memcache extends AbstractService
         'failure_callback'  => null
     );
 
+    /**
+     * Load options
+     *
+     * @param string|array $config
+     * @return array
+     */
     protected function loadOptions($config)
     {
         if (is_string($config)) {
@@ -43,7 +48,8 @@ class Memcache extends AbstractService
         }
 
         if (isset($config['host'])) {
-            $config = array(0 => $config); // Transform it into associative arrays
+            // Transform it into associative arrays
+            $config = array(0 => $config);
         }
         $servers = array();
         foreach ($config as $idx => $server) {
@@ -53,6 +59,13 @@ class Memcache extends AbstractService
         return $servers;
     }
 
+    /**
+     * Load an instance
+     *
+     * @param array|null $config
+     * @return MemcacheExtension
+     * @throws exception
+     */
     public function load($config = null)
     {
         if (!extension_loaded('memcache')) {

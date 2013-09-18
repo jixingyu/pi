@@ -1,21 +1,10 @@
 <?php
 /**
- * Pi module installer resource
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Pi\Application
- * @subpackage      Installer
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Pi\Application\Installer\Resource;
@@ -24,20 +13,33 @@ use Pi;
 use Pi\Acl\Acl as AclHandler;
 
 /**
- * ACL configuration specs
+ * Setup ACL component with configuration specs
  *
- *  return array(
+ * ```
+ *  array(
  *      'roles' => array(
- *          'roleName'  => array(
- *              'title'     => 'Title',
- *              'parents'   => array('parent'),
+ *          'admin' => array(
+ *              <role-name>  => array(
+ *                  'title'     => 'Title',
+ *                  'parents'   => array('parent'),
+ *              ),
+ *              <role-name> => array(
+ *                  'title'     => 'Title',
+ *                  'parents'   => array('parent'),
+ *              ),
+ *              <...>
  *          ),
- *          'roleNameStaff' => array(
- *              'title'     => 'Title',
- *              'parents'   => array('parent'),
- *              'section'   => 'admin',         // Default as front if not specified
+ *          'front' => array(
+ *              <role-name>  => array(
+ *                  'title'     => 'Title',
+ *                  'parents'   => array('parent'),
+ *              ),
+ *              <role-name> => array(
+ *                  'title'     => 'Title',
+ *                  'parents'   => array('parent'),
+ *              ),
+ *              <...>
  *          ),
- *          ...
  *      ),
  *      'resources' => array(
  *          // Front resources
@@ -79,10 +81,19 @@ use Pi\Acl\Acl as AclHandler;
  *          ),
  *      ),
  *  );
+ * ```
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
  */
 
 class Acl extends AbstractResource
 {
+    /**
+     * Canonize ACL resource config
+     *
+     * @param array $resource
+     * @return array
+     */
     protected function canonizeResource($resource)
     {
         $columns = array(
@@ -94,9 +105,37 @@ class Acl extends AbstractResource
                 $data[$col] = $resource[$col];
             }
         }
+
         return $data;
     }
 
+    /**
+     * Canonize role data
+     *
+     * @param array $roles
+     *
+     * @return array
+     */
+    protected function canonizeRole(array $roles)
+    {
+        $module = $this->getModule();
+        $result = array();
+        foreach ($roles as $section => $list) {
+            foreach ($list as $name => $role) {
+                $result[$name] = array_merge(array(
+                    'name'      => $name,
+                    'module'    => $module,
+                    'section'   => $section,
+                ), $role);
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     public function installAction()
     {
         $module = $this->event->getParam('module');
@@ -150,11 +189,17 @@ class Acl extends AbstractResource
         $modelRule = Pi::model('acl_rule');
         foreach ($modulePerms as $section => $access) {
             foreach ($access as $role => $rule) {
-                AclHandler::addRule($rule, $role, 'module-' . $section, $module, $module);
+                AclHandler::addRule(
+                    $rule,
+                    $role,
+                    'module-' . $section,
+                    $module,
+                    $module
+                );
             }
         }
 
-        Pi::service('registry')->moduleperm->flush();
+        Pi::registry('moduleperm')->flush();
 
         if (empty($this->config)) {
             return true;
@@ -163,9 +208,10 @@ class Acl extends AbstractResource
         // Add roles
         if (!empty($this->config['roles'])) {
             $inheritance = array();
-            foreach ($this->config['roles'] as $name => $role) {
-                $role['name'] = $name;
-                $role['module'] = $module;
+            $roles = $this->canonizeRole($this->config['roles']);
+            foreach ($roles as $key => $role) {
+                //$role['name'] = $name;
+                //$role['module'] = $module;
                 if (isset($role['parents'])) {
                     $inheritance[$role['name']] = $role['parents'];
                     unset($role['parents']);
@@ -173,7 +219,10 @@ class Acl extends AbstractResource
                 $message = array();
                 $status = $this->insertRole($role, $message);
                 if (false === $status) {
-                    $message[] = sprintf('Role "%s" is not created.', $role['name']);
+                    $message[] = sprintf(
+                        'Role "%s" is not created.',
+                        $key
+                    );
                     return array(
                         'status'    => false,
                         'message'   => $message
@@ -187,7 +236,11 @@ class Acl extends AbstractResource
                         $message = array();
                         $status = $this->insertInherit($inherit, $message);
                         if (false === $status) {
-                            $message[] = sprintf('Inherit "%s-%s" is not created.', $child, $parent);
+                            $message[] = sprintf(
+                                'Inherit "%s-%s" is not created.',
+                                $child,
+                                $parent
+                            );
                             return array(
                                 'status'    => false,
                                 'message'   => $message
@@ -199,17 +252,22 @@ class Acl extends AbstractResource
         }
 
         // Add resources
-        $resources = isset($this->config['resources']) ? $this->config['resources'] : array();
+        $resources = isset($this->config['resources'])
+            ? $this->config['resources'] : array();
         foreach ($resources as $section => $resourceList) {
             foreach ($resourceList as $name => $resource) {
                 $resource['name'] = $name;
-                $resource['module'] = isset($resource['module']) ? $resource['module'] : $module;
+                $resource['module'] = isset($resource['module'])
+                    ? $resource['module'] : $module;
                 $resource['section'] = $section;
                 $resource['type'] = 'system';
                 $message = array();
                 $status = $this->insertResource($resource, $message);
                 if (!$status) {
-                    $message[] = sprintf('Resource "%s" is not created.', $resource['name']);
+                    $message[] = sprintf(
+                        'Resource "%s" is not created.',
+                        $resource['name']
+                    );
                     return array(
                         'status'    => false,
                         'message'   => $message,
@@ -218,12 +276,15 @@ class Acl extends AbstractResource
             }
         }
 
-        Pi::service('registry')->role->flush();
-        Pi::service('registry')->resource->flush();
+        Pi::registry('role')->flush();
+        Pi::registry('resource')->flush();
 
         return true;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function updateAction()
     {
         $module = $this->event->getParam('module');
@@ -232,7 +293,8 @@ class Acl extends AbstractResource
         }
 
         // Update roles
-        $rolesNew = isset($this->config['roles']) ? $this->config['roles'] : array();
+        $roles = $this->canonizeRole($this->config['roles']);
+        $rolesNew = $roles;
 
         $model = Pi::model('acl_role');
         $rowset = $model->select(array(
@@ -245,9 +307,9 @@ class Acl extends AbstractResource
         }
         $inheritanceNew = array();
         //$inheritanceDelete = array();
-        foreach ($rolesNew as $name => $role) {
-            $role['name'] = $name;
-            $role['module'] = $module;
+        foreach ($rolesNew as $key => $role) {
+            //$role['name'] = $name;
+            //$role['module'] = $module;
             if (isset($role['parents'])) {
                 foreach ($role['parents'] as $parent) {
                     $inheritanceNew[$role['name']][$parent] = 1;
@@ -255,19 +317,22 @@ class Acl extends AbstractResource
                 unset($role['parents']);
             }
             // Update existent role
-            if (isset($rolesExist[$name])) {
-                if ($rolesExist[$name]->title != $role['title']) {
-                    $rolesExist[$name]->title = $role['title'];
-                    $rolesExist[$name]->save();
+            if (isset($rolesExist[$key])) {
+                if ($rolesExist[$key]->title != $role['title']) {
+                    $rolesExist[$key]->title = $role['title'];
+                    $rolesExist[$key]->save();
                 }
-                unset($rolesExist[$name]);
+                unset($rolesExist[$key]);
                 continue;
             }
             // Add new role
             $message = array();
             $status = $this->insertRole($role, $message);
             if (false === $status) {
-                $message[] = sprintf('Role "%s" is not created.', $role['name']);
+                $message[] = sprintf(
+                    'Role "%s" is not created.',
+                    $key
+                );
                 return array(
                     'status'    => false,
                     'message'   => $message
@@ -284,7 +349,8 @@ class Acl extends AbstractResource
         $rowset = Pi::model('acl_inherit')->select(array());
         foreach ($rowset as $row) {
             // Delete inheritance linked to deleted roles
-            if (isset($rolesDelete[$row->child]) || isset($rolesDelete[$row->parent])) {
+            if (isset($rolesDelete[$row->child])
+                || isset($rolesDelete[$row->parent])) {
                 $row->delete();
             // Mark existent links
             } else {
@@ -306,7 +372,8 @@ class Acl extends AbstractResource
         }
 
         // Update resources
-        $resources_new = isset($this->config['resources']) ? $this->config['resources'] : array();
+        $resources_new = isset($this->config['resources'])
+            ? $this->config['resources'] : array();
 
         $model = Pi::model('acl_resource');
         $rowset = $model->select(array(
@@ -322,7 +389,8 @@ class Acl extends AbstractResource
         foreach ($resources_new as $section => $resourceList) {
             foreach ($resourceList as $name => $resource) {
                 $resource['name'] = $name;
-                $resource['module'] = empty($resource['module']) ? $module : $resource['module'];
+                $resource['module'] = empty($resource['module'])
+                    ? $module : $resource['module'];
                 $resource['section'] = $section;
                 $resource['type'] = 'system';
                 // Update existent resource
@@ -332,7 +400,10 @@ class Acl extends AbstractResource
                     $status = $this->updateResource($resource, $message);
                     unset($resources_exist[$section][$name]);
                     if (!$status) {
-                        $message[] = sprintf('Resource "%s" is not updated.', $resource['name']);
+                        $message[] = sprintf(
+                            'Resource "%s" is not updated.',
+                            $resource['name']
+                        );
                         return array(
                             'status'    => false,
                             'message'   => $message,
@@ -344,7 +415,10 @@ class Acl extends AbstractResource
                 // Add new resource
                 $status = $this->insertResource($resource, $message);
                 if (!$status) {
-                    $message[] = sprintf('Resource "%s" is not created.', $resource['name']);
+                    $message[] = sprintf(
+                        'Resource "%s" is not created.',
+                        $resource['name']
+                    );
                     return array(
                         'status'    => false,
                         'message'   => $message,
@@ -359,7 +433,10 @@ class Acl extends AbstractResource
                 $message = array();
                 $status = $this->deleteResource($resource, $message);
                 if (!$status) {
-                    $message[] = sprintf('Resource "%s" is not deleted.', $resource['name']);
+                    $message[] = sprintf(
+                        'Resource "%s" is not deleted.',
+                        $resource['name']
+                    );
                     return array(
                         'status'    => false,
                         'message'   => $message,
@@ -368,11 +445,15 @@ class Acl extends AbstractResource
             }
         }
 
-        Pi::service('registry')->role->flush();
-        Pi::service('registry')->resource->flush();
+        Pi::registry('role')->flush();
+        Pi::registry('resource')->flush();
+
         return true;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function uninstallAction()
     {
         $module = $this->event->getParam('module');
@@ -408,12 +489,16 @@ class Acl extends AbstractResource
         */
         Pi::model('acl_rule')->delete(array('module' => $module));
 
-        Pi::service('registry')->moduleperm->flush();
-        Pi::service('registry')->role->flush();
-        Pi::service('registry')->resource->flush();
+        Pi::registry('moduleperm')->flush();
+        Pi::registry('role')->flush();
+        Pi::registry('resource')->flush();
+
         return true;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function activateAction()
     {
         $module = $this->event->getParam('module');
@@ -421,12 +506,15 @@ class Acl extends AbstractResource
         $model = Pi::model('acl_role');
         $model->update(array('active' => 1), $where);
 
-        Pi::service('registry')->role->flush();
-        Pi::service('registry')->resource->flush();
+        Pi::registry('role')->flush();
+        Pi::registry('resource')->flush();
 
         return true;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function deactivateAction()
     {
         $module = $this->event->getParam('module');
@@ -434,28 +522,51 @@ class Acl extends AbstractResource
         $model = Pi::model('acl_role');
         $model->update(array('active' => 0), $where);
 
-        Pi::service('registry')->role->flush();
-        Pi::service('registry')->resource->flush();
+        Pi::registry('role')->flush();
+        Pi::registry('resource')->flush();
 
         return true;
     }
 
+    /**
+     * Create a role
+     *
+     * @param array $role
+     * @param array $message
+     * @return bool
+     */
     protected function insertRole($role, &$message)
     {
         $model = Pi::model('acl_role');
         $row = $model->createRow($role);
         $row->save();
+
         return $row->id ? true : false;
     }
 
+    /**
+     * Create role inheritance
+     *
+     * @param array $pair
+     * @param array $message
+     * @return bool
+     */
     protected function insertInherit($pair, &$message)
     {
         $model = Pi::model('acl_inherit');
         $row = $model->createRow($pair);
         $row->save();
+
         return $row->id ? true : false;
     }
 
+    /**
+     * Inerset ACL resource
+     *
+     * @param array $resource
+     * @param array $message
+     * @return bool
+     */
     protected function insertResource($resource, &$message)
     {
         $modelResource = Pi::model('acl_resource');
@@ -488,7 +599,10 @@ class Acl extends AbstractResource
         // Add resource
         $resourceId = $modelResource->add($data, $parent);
         if (!$resourceId) {
-            $message[] = sprintf('Resource "%s" is not created.', $data['name']);
+            $message[] = sprintf(
+                'Resource "%s" is not created.',
+                $data['name']
+            );
             return false;
         }
 
@@ -498,30 +612,54 @@ class Acl extends AbstractResource
                     'resource'  => $resourceId,
                     'module'    => $resource['module'],
                     'name'      => $name,
-                    'title'     => isset($privilege['title']) ? $privilege['title'] : $name,
+                    'title'     => isset($privilege['title'])
+                                   ? $privilege['title'] : $name,
                 );
                 $row = $modelPrivilege->createRow($data);
                 $row->save();
                 if (!$row->id) {
-                    $message[] = sprintf('Privilege "%s" is not created.', implode('-', array_values($data)));
+                    $message[] = sprintf(
+                        'Privilege "%s" is not created.',
+                        implode('-', array_values($data))
+                    );
                     return false;
                 }
                 if (isset($privilege['access'])) {
                     foreach ($privilege['access'] as $role => $rule) {
-                        AclHandler::addRule($rule, $role, $resource['section'], $resource['module'], $resourceId, $name);
+                        AclHandler::addRule(
+                            $rule,
+                            $role,
+                            $resource['section'],
+                            $resource['module'],
+                            $resourceId,
+                            $name
+                        );
                     }
                 }
             }
         // Insert access rules
         } elseif (isset($resource['access'])) {
             foreach ($resource['access'] as $role => $rule) {
-                AclHandler::addRule($rule, $role, $resource['section'], $resource['module'], $resourceId);
+                AclHandler::addRule(
+                    $rule,
+                    $role,
+                    $resource['section'],
+                    $resource['module'],
+                    $resourceId
+                );
             }
         }
 
         return true;
     }
 
+    /**
+     * Update ACL resource
+     *
+     * @param array $resource
+     * @param array $message
+     * @return bool
+     */
     protected function updateResource($resource, &$message)
     {
         $modelResource = Pi::model('acl_resource');
@@ -536,12 +674,16 @@ class Acl extends AbstractResource
         $resourceRow->title = $resource['title'];
         $resourceRow->save();
 
-        $privileges_exist = $modelPrivilege->select(array('resource' => $resource['id']));
-        $privileges_new = isset($resource['privileges']) ? $resource['privileges'] : array();
+        $privileges_exist = $modelPrivilege->select(array(
+            'resource' => $resource['id'],
+        ));
+        $privileges_new = isset($resource['privileges'])
+            ? $resource['privileges'] : array();
         $privileges_remove = array();
         foreach ($privileges_exist as $privilege) {
             if (isset($privileges_new[$privilege['name']])) {
-                $privilege->title = $privileges_new[$privilege['name']]['title'];
+                $privilege->title =
+                    $privileges_new[$privilege['name']]['title'];
                 $privilege->save();
                 unset($privileges_new[$privilege['name']]);
                 continue;
@@ -550,25 +692,41 @@ class Acl extends AbstractResource
             }
         }
         if (!empty($privileges_remove)) {
-            $modelPrivilege->delete(array('id' => array_keys($privileges_remove)));
-            $modelRule->delete(array('privilege' => array_values($privileges_remove), 'resource' => $resource['id']));
+            $modelPrivilege->delete(array(
+                'id' => array_keys($privileges_remove),
+            ));
+            $modelRule->delete(array(
+                'privilege' => array_values($privileges_remove),
+                'resource' => $resource['id'],
+            ));
         }
         foreach ($privileges_new as $name => $privilege) {
             $data = array(
                 'resource'  => $resource['id'],
                 'module'    => $resource['module'],
                 'name'      => $name,
-                'title'     => isset($privilege['title']) ? $privilege['title'] : $name,
+                'title'     => isset($privilege['title'])
+                               ? $privilege['title'] : $name,
             );
             $row = $modelPrivilege->createRow($data);
             $row->save();
             if (!$row->id) {
-                $message[] = sprintf('Privilege "%s" is not created.', implode('-', array_values($data)));
+                $message[] = sprintf(
+                    'Privilege "%s" is not created.',
+                    implode('-', array_values($data))
+                );
                 return false;
             }
             if (isset($privilege['access'])) {
                 foreach ($privilege['access'] as $role => $rule) {
-                    AclHandler::addRule($rule, $role, $resource['section'], $resource['module'], $resourceId, $name);
+                    AclHandler::addRule(
+                        $rule,
+                        $role,
+                        $resource['section'],
+                        $resource['module'],
+                        $resource['id'],
+                        $name
+                    );
                 }
             }
         }
@@ -576,6 +734,13 @@ class Acl extends AbstractResource
         return true;
     }
 
+    /**
+     * Delete ACL resource
+     *
+     * @param int|Pi\Application\Model\Acl\Resource $resource
+     * @param array $message
+     * @return bool
+     */
     protected function deleteResource($resource, &$message = null)
     {
         $modelResource = Pi::model('acl_resource');
@@ -603,6 +768,7 @@ class Acl extends AbstractResource
             unset($data['section']);
             $modelPrivilege->delete($data);
         }
+
         return true;
     }
 }

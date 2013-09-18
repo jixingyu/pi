@@ -1,77 +1,69 @@
 <?php
 /**
- * DB Table session save handler
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Pi\Session
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Pi\Session\SaveHandler;
+
 use Pi;
 use Pi\Application\Model\Model;
 use Zend\Session\SaveHandler\SaveHandlerInterface;
 use Pi\Db\RowGateway\RowGateway;
 
-class DbTable implements SaveHandlerInterface
+/**
+ * DB Table session save handler
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
+class DbTable implements SaveHandlerInterface, UserAwarenessInterface
 {
     /**
      * Session table model
-     *
      * @var Model
      */
     protected $model;
 
     /**
      * Session data row
-     *
      * @var RowGateway
      */
     protected $row;
 
     /**
      * Session lifetime in seconds
-     *
      * @var int
      */
     protected $lifetime = 0;
 
     /**
      * Whether or not the lifetime of an existing session should be overridden
-     *
-     * @var boolean
+     * @var bool
      */
     protected $overrideLifetime = false;
 
     /**
-     * Session save path
-     *
+     * Session save path, not used
      * @var string
      */
     protected $sessionSavePath;
 
     /**
      * Session name
-     *
      * @var string
      */
     protected $sessionName;
 
+    /** @var  int User id */
+    protected $uid;
+
     /**
      * Constructor
      *
-     * @param  array    $config      User-provided configuration
-     * @return void
+     * @param array $config User-provided configuration
      */
     public function __construct($config = array())
     {
@@ -90,18 +82,23 @@ class DbTable implements SaveHandlerInterface
     }
 
     /**
-     * Set session lifetime and optional whether or not the lifetime of an existing session should be overridden
+     * Set session lifetime and optional whether or not the lifetime of
+     * an existing session should be overridden
      *
      * $lifetime === false resets lifetime to session.gc_maxlifetime
      *
-     * @param int $lifetime
-     * @param boolean $overrideLifetime (optional)
-     * @return DbTable
+     * @param int       $lifetime
+     * @param bool|null $overrideLifetime (optional)
+     *
+     * @throws \InvalidArgumentException
+     * @return self
      */
     public function setLifetime($lifetime, $overrideLifetime = null)
     {
         if ($lifetime < 0) {
-            throw new \InvalidArgumentException('Lifetime must be greater than 0');
+            throw new \InvalidArgumentException(
+                'Lifetime must be greater than 0'
+            );
         } elseif (empty($lifetime)) {
             $this->lifetime = (int) ini_get('session.gc_maxlifetime');
         } else {
@@ -126,10 +123,11 @@ class DbTable implements SaveHandlerInterface
     }
 
     /**
-     * Set whether or not the lifetime of an existing session should be overridden
+     * Set whether or not the lifetime of an existing session should
+     * be overridden
      *
-     * @param boolean $overrideLifetime
-     * @return DbTable
+     * @param bool $overrideLifetime
+     * @return self
      */
     public function setOverrideLifetime($overrideLifetime)
     {
@@ -139,9 +137,10 @@ class DbTable implements SaveHandlerInterface
     }
 
     /**
-     * Retrieve whether or not the lifetime of an existing session should be overridden
+     * Retrieve whether or not the lifetime of an existing session
+     * should be overridden
      *
-     * @return boolean
+     * @return bool
      */
     public function getOverrideLifetime()
     {
@@ -153,7 +152,7 @@ class DbTable implements SaveHandlerInterface
      *
      * @param string $savePath
      * @param string $name
-     * @return boolean
+     * @return bool
      */
     public function open($savePath, $name)
     {
@@ -166,7 +165,7 @@ class DbTable implements SaveHandlerInterface
     /**
      * Close session
      *
-     * @return boolean
+     * @return bool
      */
     public function close()
     {
@@ -187,7 +186,8 @@ class DbTable implements SaveHandlerInterface
         }
         $row = $this->model->find($id);
         if ($row) {
-            $lifetime = $this->overrideLifetime ? $this->lifetime : $row->lifetime;
+            $lifetime = $this->overrideLifetime
+                ? $this->lifetime : $row->lifetime;
             if ($row->modified + $lifetime > time()) {
                 $return = $row->data;
                 $this->row = $row;
@@ -195,6 +195,7 @@ class DbTable implements SaveHandlerInterface
                 $this->destroy($id);
             }
         }
+
         return $return;
     }
 
@@ -203,7 +204,7 @@ class DbTable implements SaveHandlerInterface
      *
      * @param string $id
      * @param string $data
-     * @return boolean
+     * @return bool|int
      */
     public function write($id, $data)
     {
@@ -211,8 +212,15 @@ class DbTable implements SaveHandlerInterface
         if (!$id) {
             return $return;
         }
-        $row = ($this->row && $id == $this->row->id) ? $this->row : $this->model->find($id);
-        $data = array('modified' => time(), 'data' => (string) $data);
+        $row = ($this->row && $id == $this->row->id)
+            ? $this->row : $this->model->find($id);
+        $data = array(
+            'modified'  => time(),
+            'data'      => (string) $data,
+        );
+        if (null !== $this->uid) {
+            $data['uid'] = (int) $this->uid;
+        }
 
         try {
             if ($row) {
@@ -225,7 +233,10 @@ class DbTable implements SaveHandlerInterface
                 $return = $row->save(false);
             }
         } catch (\Exception $e) {
-            trigger_error('Session write error: ' . $e->getMessage(), E_USER_ERROR);
+            trigger_error(
+                'Session write error: ' . $e->getMessage(),
+                E_USER_ERROR
+            );
         }
 
         return $return;
@@ -235,7 +246,7 @@ class DbTable implements SaveHandlerInterface
      * Destroy session
      *
      * @param string $id
-     * @return boolean
+     * @return bool
      */
     public function destroy($id)
     {
@@ -257,10 +268,46 @@ class DbTable implements SaveHandlerInterface
     public function gc($maxlifetime)
     {
         $this->model->delete($this->model->quoteIdentifier('modified') . ' + '
-                    . $this->model->quoteIdentifier('lifetime') . ' < '
-                    . $this->model->quoteValue(time()));
+            . $this->model->quoteIdentifier('lifetime') . ' < '
+            . $this->model->quoteValue(time()));
 
         return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function setUser($uid)
+    {
+        $this->uid = (int) $uid;
+
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function killUser($uid)
+    {
+        $result = null;
+        if ($uid) {
+            $row = null;
+            try {
+                $row = $this->model->find($uid, 'uid');
+            } catch (\Exception $e) {
+                $result = false;
+            }
+            if ($row) {
+                try {
+                    $row->delete();
+                    $result = true;
+                } catch (\Exception $e) {
+                    $result = false;
+                }
+            }
+        }
+
+        return $result;
     }
 
     /**

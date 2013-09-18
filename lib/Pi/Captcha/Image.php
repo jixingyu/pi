@@ -1,41 +1,34 @@
 <?php
 /**
- * Pi CAPTCHA image class
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Pi\Captcha
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Pi\Captcha;
+
 use Pi;
 use Zend\Captcha\Image as ZendImage;
-
 use Zend\Captcha\Exception;
 use Zend\Stdlib\ErrorException;
 use Zend\Stdlib\ErrorHandler;
 
+/**
+ * CAPTCHA image class
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 class Image extends ZendImage
 {
     /**
-     * Set captcha image base URL
-     *
-     * @param  string $imgUrl
-     * @return Image
+     * {@inheritDoc}
      */
     public function setImgUrl($imgUrl)
     {
         $this->imgUrl = $imgUrl;
+
         return $this;
     }
 
@@ -56,31 +49,30 @@ class Image extends ZendImage
         $this->setWord($word);
         //$word = $this->getWord();
         $image = $this->generateImage($id, $word);
+
         return $image;
     }
 
     /**
-     * Get session object
-     *
-     * @return Container
+     * {@inheritDoc}
      */
     public function getSession()
     {
         if (!isset($this->session) || (null === $this->session)) {
             $id = $this->getId();
-            $this->session = Pi::service('session')->container('Pi_Captcha_' . $id);
+            $this->session = Pi::service('session')->container(
+                'Pi_Captcha_' . $id
+            );
             // Skip session reset
             //$this->session->setExpirationHops(1);
             //$this->session->setExpirationSeconds($this->getTimeout());
         }
+
         return $this->session;
     }
 
     /**
-     * Set captcha word
-     *
-     * @param  string $word
-     * @return AbstractWord
+     * {@inheritDoc}
      */
     protected function setWord($word)
     {
@@ -93,13 +85,12 @@ class Image extends ZendImage
         /**#@-*/
         $session->word = $word;
         $this->word    = $word;
+
         return $this;
     }
 
     /**
-     * Generate new session ID and new word
-     *
-     * @return string session ID
+     * {@inheritDoc}
      */
     public function generate()
     {
@@ -110,24 +101,23 @@ class Image extends ZendImage
         $this->setId($id);
         //$word = $this->generateWord();
         //$this->setWord($word);
+
         return $id;
     }
 
     /**
-     * Generate image captcha
+     * {@inheritDoc}
      *
-     * Override this function if you want different image generator
-     * Wave transform from http://www.captcha.ru/captchas/multiwave/
-     *
-     * @param string $id Captcha ID
-     * @param string $word Captcha word
+     * @return resource
      */
     protected function generateImage($id, $word)
     {
         $font = $this->getFont();
 
         if (empty($font)) {
-            throw new Exception\NoFontProvidedException('Image CAPTCHA requires font');
+            throw new Exception\NoFontProvidedException(
+                'Image CAPTCHA requires font'
+            );
         }
 
         $w     = $this->getWidth();
@@ -144,7 +134,9 @@ class Image extends ZendImage
             $img   = imagecreatefrompng($this->startImage);
             $error = ErrorHandler::stop();
             if (!$img || $error instanceof ErrorException) {
-                throw new Exception\ImageNotLoadableException('Can not load start image');
+                throw new Exception\ImageNotLoadableException(
+                    'Can not load start image'
+                );
             }
             $w = imagesx($img);
             $h = imagesy($img);
@@ -160,10 +152,12 @@ class Image extends ZendImage
 
         // generate noise
         for ($i=0; $i < $this->dotNoiseLevel; $i++) {
-           imagefilledellipse($img, mt_rand(0,$w), mt_rand(0,$h), 2, 2, $text_color);
+           imagefilledellipse($img, mt_rand(0,$w), mt_rand(0,$h), 2, 2,
+                              $text_color);
         }
         for ($i=0; $i < $this->lineNoiseLevel; $i++) {
-           imageline($img, mt_rand(0,$w), mt_rand(0,$h), mt_rand(0,$w), mt_rand(0,$h), $text_color);
+           imageline($img, mt_rand(0,$w), mt_rand(0,$h), mt_rand(0,$w),
+                     mt_rand(0,$h), $text_color);
         }
 
         // transformed image
@@ -187,22 +181,32 @@ class Image extends ZendImage
 
         for ($x = 0; $x < $w; $x++) {
             for ($y = 0; $y < $h; $y++) {
-                $sx = $x + (sin($x*$freq1 + $ph1) + sin($y*$freq3 + $ph3)) * $szx;
-                $sy = $y + (sin($x*$freq2 + $ph2) + sin($y*$freq4 + $ph4)) * $szy;
+                $sx = $x + (sin($x*$freq1 + $ph1)
+                    + sin($y*$freq3 + $ph3)) * $szx;
+                $sy = $y + (sin($x*$freq2 + $ph2)
+                    + sin($y*$freq4 + $ph4)) * $szy;
 
                 if ($sx < 0 || $sy < 0 || $sx >= $w - 1 || $sy >= $h - 1) {
                     continue;
                 } else {
-                    $color    = (imagecolorat($img, $sx, $sy) >> 16)         & 0xFF;
-                    $color_x  = (imagecolorat($img, $sx + 1, $sy) >> 16)     & 0xFF;
-                    $color_y  = (imagecolorat($img, $sx, $sy + 1) >> 16)     & 0xFF;
-                    $color_xy = (imagecolorat($img, $sx + 1, $sy + 1) >> 16) & 0xFF;
+                    $color    = (imagecolorat($img, $sx, $sy) >> 16)
+                        & 0xFF;
+                    $color_x  = (imagecolorat($img, $sx + 1, $sy) >> 16)
+                        & 0xFF;
+                    $color_y  = (imagecolorat($img, $sx, $sy + 1) >> 16)
+                        & 0xFF;
+                    $color_xy = (imagecolorat($img, $sx + 1, $sy + 1) >> 16)
+                        & 0xFF;
                 }
 
-                if ($color == 255 && $color_x == 255 && $color_y == 255 && $color_xy == 255) {
+                if ($color == 255 && $color_x == 255 && $color_y == 255
+                    && $color_xy == 255
+                ) {
                     // ignore background
                     continue;
-                } elseif ($color == 0 && $color_x == 0 && $color_y == 0 && $color_xy == 0) {
+                } elseif ($color == 0 && $color_x == 0 && $color_y == 0
+                    && $color_xy == 0
+                ) {
                     // transfer inside of the image as-is
                     $newcolor = 0;
                 } else {
@@ -218,17 +222,20 @@ class Image extends ZendImage
                               + $color_xy * $frac_x  * $frac_y;
                 }
 
-                imagesetpixel($img2, $x, $y, imagecolorallocate($img2, $newcolor, $newcolor, $newcolor));
+                imagesetpixel($img2, $x, $y, imagecolorallocate($img2,
+                              $newcolor, $newcolor, $newcolor));
             }
         }
 
         // generate noise
         for ($i=0; $i<$this->dotNoiseLevel; $i++) {
-            imagefilledellipse($img2, mt_rand(0,$w), mt_rand(0,$h), 2, 2, $text_color);
+            imagefilledellipse($img2, mt_rand(0,$w), mt_rand(0,$h), 2, 2,
+                $text_color);
         }
 
         for ($i=0; $i<$this->lineNoiseLevel; $i++) {
-           imageline($img2, mt_rand(0,$w), mt_rand(0,$h), mt_rand(0,$w), mt_rand(0,$h), $text_color);
+           imageline($img2, mt_rand(0,$w), mt_rand(0,$h), mt_rand(0,$w),
+                     mt_rand(0,$h), $text_color);
         }
 
         /*
@@ -238,6 +245,7 @@ class Image extends ZendImage
         */
 
         imagedestroy($img);
+        
         return $img2;
     }
 }

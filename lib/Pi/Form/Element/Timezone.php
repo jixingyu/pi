@@ -1,21 +1,12 @@
 <?php
 /**
- * Form element timezone class
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Pi\Form
- * @subpackage      ELement
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
+ * @package         Form
+ * @package         Form
  */
 
 namespace Pi\Form\Element;
@@ -24,11 +15,19 @@ use Pi;
 use Zend\Form\Element\Select;
 use DateTimeZone;
 
+/**
+ * Navigation select element
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 class Timezone extends Select
 {
+    /** @var array Timezones */
     static protected $timezones = array();
 
     /**
+     * Get options of value select
+     *
      * @return array
      */
     public function getValueOptions()
@@ -36,7 +35,7 @@ class Timezone extends Select
         if (empty($this->valueOptions)) {
             if (!static::$timezones) {
                 Pi::service('i18n')->load('timezone');
-                foreach(DateTimeZone::listIdentifiers() as $timezone) {
+                foreach (DateTimeZone::listIdentifiers() as $timezone) {
                     static::$timezones[$timezone] = __($timezone);
                 }
             }

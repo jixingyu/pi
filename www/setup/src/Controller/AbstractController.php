@@ -1,26 +1,22 @@
 <?php
 /**
- * Pi Engine Setup Controller Abstract
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Pi\Setup
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Pi\Setup\Controller;
+
 use Pi;
 use Pi\Setup\Wizard;
 
+/**
+ * Abstract controller class
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 abstract class AbstractController
 {
     protected $content = '';
@@ -41,13 +37,15 @@ abstract class AbstractController
             $vars = $wizard->getPersist('paths');
 
             // Physical path to host configuration file
-            // For performance consideration it is recommended to be specified if there is only one host; Otherwise it will be automatically looked up in central host specifications
+            // For performance consideration it is recommended to be specified
+            // if there is only one host; Otherwise it will be automatically
+            // looked up in central host specifications
             define('PI_PATH_HOST', $vars['config']['path'] . '/host.php');
 
             // Physical path to www directory WITHOUT trailing slash
             define('PI_PATH_WWW', $vars['www']['path']);
 
-            // Physical path to default library directory WITHOUT trailing slash
+            // Physical path to default lib directory WITHOUT trailing slash
             define('PI_PATH_LIB', $vars['lib']['path']);
             /**#@-*/
 

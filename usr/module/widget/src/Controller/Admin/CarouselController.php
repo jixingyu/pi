@@ -1,28 +1,19 @@
 <?php
 /**
- * Action controller class
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Module\Widget
- * @subpackage      Controller
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Module\Widget\Controller\Admin;
 
 use Pi;
+
 use Module\Widget\Form\BlockCarouselForm as BlockForm;
 use Pi\File\Transfer\Upload;
+use Zend\Uri\Uri;
 
 /**
  * For carousel block
@@ -37,6 +28,7 @@ class CarouselController extends WidgetController
     protected function getForm()
     {
         $this->form = $this->form ?: new BlockForm('block');
+
         return $this->form;
     }
 
@@ -45,6 +37,7 @@ class CarouselController extends WidgetController
         if (!$this->urlRoot) {
             $this->urlRoot = Pi::url('upload') . '/' . $this->getModule();
         }
+
         return $this->urlRoot;
     }
 
@@ -56,7 +49,10 @@ class CarouselController extends WidgetController
             unset($block['type']);
         }
 
-        $result = Pi::service('api')->system(array('block', 'update'), $widgetRow->block, $block);
+        $result = Pi::api('system', 'block')->update(
+            $widgetRow->block,
+            $block
+        );
         $status = $result['status'];
         if ($status) {
             $items = json_decode($widgetRow->meta, true);
@@ -79,6 +75,7 @@ class CarouselController extends WidgetController
             $this->deleteImages($imageList);
 
         }
+
         return $status;
     }
 
@@ -137,7 +134,7 @@ class CarouselController extends WidgetController
 
     public function uploadAction()
     {
-        Pi::service('log')->active(false);
+        //Pi::service('log')->mute();
         $return = array(
             'status'    => 1,
             'message'   => '',
@@ -164,11 +161,12 @@ class CarouselController extends WidgetController
         /**#@-*/
 
         $uploader = new Upload(array('rename' => $rename));
-        $uploader->setExtension('jpg,png,gif'); //->setRename('tmp.%random%'); //->setImageSize(array('maxWidth' => 600, 'maxHeight' => 500));
+        $uploader->setExtension('jpg,png,gif');
+        //->setRename('tmp.%random%');
+        //->setImageSize(array('maxWidth' => 600, 'maxHeight' => 500));
         if ($uploader->isValid()) {
             $uploader->receive();
             $file = $uploader->getUploaded('image');
-            //$return['image'] = Pi::url('upload') . '/' . $this->getModule() . '/' . $file;
             $return['image'] = $file;
         } else {
             $messages = $uploader->getMessages();
@@ -178,13 +176,7 @@ class CarouselController extends WidgetController
             );
         }
 
-        //return $return;
-        /**#@+
-         *  For iframe
-         */
-        $this->view()->setTemplate(false)->setLayout('layout-content');
-        return json_encode($return);
-        /**#@-*/
+        return $return;
     }
 
     protected function canonizePost($values)
@@ -192,13 +184,13 @@ class CarouselController extends WidgetController
         if (empty($values['id'])) {
             $values['config'] = array(
                 'interval' => array(
-                    'title'         => 'Time interval (ms)',
+                    'title'         => _t('Time interval (ms)'),
                     'edit'          => 'text',
                     'filter'        => 'number_int',
                     'value'         => 2000,
                 ),
                 'pause' => array(
-                    'title'         => 'Mouse event to pause cycle',
+                    'title'         => _t('Mouse event to pause cycle'),
                     'edit'          => array(
                         'type'  =>  'select',
                         'options'   => array(
@@ -221,9 +213,12 @@ class CarouselController extends WidgetController
         $content = json_decode($content, true);
         $items = array();
         foreach ($content as $item) {
-            $item['image'] = $this->urlRoot() . '/' . $item['image'];
+            if (!$this->isAbsoluteUrl($item['image'])) {
+                $item['image'] = $this->urlRoot() . '/' . $item['image'];
+            }
             $items[] = $item;
         }
+
         return json_encode($items);
     }
 
@@ -236,7 +231,8 @@ class CarouselController extends WidgetController
         foreach ($content as $item) {
             if ($this->tmpPrefix == substr($item['image'], 0, $prefixLength)) {
                 $newName = substr($item['image'], $prefixLength);
-                $renamed = rename($pathRoot . '/' . $item['image'], $pathRoot . '/' . $newName);
+                $renamed = rename($pathRoot . '/' . $item['image'],
+                                  $pathRoot . '/' . $newName);
                 if ($renamed) {
                     $item['image'] = $newName;
                 }
@@ -244,6 +240,7 @@ class CarouselController extends WidgetController
 
             $items[] = $item;
         }
+
         return json_encode($items);
     }
 
@@ -251,10 +248,34 @@ class CarouselController extends WidgetController
     {
         $path = Pi::path('upload') . '/' . $this->getModule();
         foreach ($images as $image) {
+            if ($this->isAbsoluteUrl($image)) {
+                continue;
+            }
             $file = $path . '/' . $image;
             if (is_file($file)) {
                 unlink($file);
             }
         }
+    }
+
+    protected function prepareFormValues($blockRow)
+    {
+        $data = $blockRow->toArray();
+        //$values = array();
+        foreach ($data['content'] as &$item) {
+            if (!$this->isAbsoluteUrl($item['image'])) {
+                $item['image'] = $this->urlRoot() . '/' . $item['image'];
+            }
+            //$values[] = $item;
+        }
+
+        return $data;
+    }
+
+    protected function isAbsoluteUrl($link)
+    {
+        $uri = new Uri($link);
+
+        return $uri->isAbsolute();
     }
 }

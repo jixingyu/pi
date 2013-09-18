@@ -1,21 +1,10 @@
 <?php
 /**
- * Pi ACL Rule Model
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @package         Pi\Application
- * @subpackage      Model
- * @since           3.0
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Pi\Application\Model\Acl;
@@ -24,26 +13,57 @@ use Pi;
 use Pi\Application\Model\Model;
 use Zend\Db\Sql\Predicate\Predicate;
 
+/**
+ * ACL rule model
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 class Rule extends Model
 {
+    /** @var string Section name */
     protected $section = '';
+
+    /** @var string Table name */
     protected $table = 'acl_rule';
 
+    /**
+     * Set section name
+     *
+     * @param string $section
+     * @return $this
+     */
     public function setSection($section)
     {
         if (null !== $section) {
             $this->section = $section;
         }
+
         return $this;
     }
 
+    /**
+     * Get section
+     *
+     * @return string
+     */
     public function getSection()
     {
         return $this->section;
     }
 
-    public function getRules($roles = array(), $resources = array(), $privilege = null)
-    {
+    /**
+     * Get rules subject to roles, resources and privilege
+     *
+     * @param array $roles
+     * @param array $resources
+     * @param string|null $privilege
+     * @return Pi\Db\RowGateway\RowGateway
+     */
+    public function getRules(
+        $roles      = array(),
+        $resources  = array(),
+        $privilege  = null
+    ) {
         $where = Pi::db()->where()->equalTo('section', $this->getSection());
         if (!empty($roles)) {
             if (count($roles) == 1) {
@@ -63,16 +83,18 @@ class Rule extends Model
             $where->equalTo('privilege', $privilege);
         }
         $rowset = $this->select($where);
+
         return $rowset;
     }
 
     /**
-     * Get resources to which a group of roles is allowed to access a given resource privilege
+     * Get resources to which a group of roles is allowed
+     * to access a given resource privilege
      *
      * @param array         $roles
      * @param array|Where   $where
      * @param bool          $allowed
-     * @return array of resources
+     * @return string[] Array of resources
      */
     public function getResources($roles, $where = null, $allowed = true)
     {
@@ -96,15 +118,17 @@ class Rule extends Model
         foreach ($rowset as $row) {
             $resources[] = $row->item;
         }
+
         return $resources;
     }
 
     /**
-     * Check if a group of roles is allowed/denied to access a given resource privilege
+     * Check if a group of roles is allowed/denied
+     * to access a given resource privilege
      *
      * @param array|Where   $where
      * @param bool          $default Default permission in case not defined
-     * @return boolean
+     * @return bool
      */
     public function isAllowed($where = null, $default = null)
     {

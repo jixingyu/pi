@@ -1,25 +1,23 @@
 <?php
 /**
+ * Pi Engine (http://pialog.org)
+ *
  * Pi Engine feed application specifications
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @version         $Id$
  */
-
 
 $config = include __DIR__ . '/application.front.php';
 // Translations
-$config['resource']['i18n']['translator']['global'][] = 'usr:feed';
-$config['resource']['i18n']['translator']['module'][] = 'feed';
+$config['resource']['i18n'] = array(
+    'translator'    => array(
+        'global'    => array('usr:feed'),
+        'module'    => array('feed'),
+    ),
+);
 // Session resource, load configs from resource.session.php and instantiate session service
 $config['resource']['session'] = false;
 // Load authentication configs from resource.authentication.php and instantiate authentication service
@@ -34,11 +32,12 @@ $config['resource']['render'] = array(
 );
 
 // Application service configuration
-//$config['application']['view_manager']['mvc_strategies'] = array('ViewFeedRenderer');
+$config['application']['listeners'] = array('FeedStrategyListener');
+$config['application']['view_manager']['mvc_strategies'] = null;
 $config['application']['view_manager']['strategies'] = array('ViewFeedStrategy');
 $config['application']['send_response'] = null;
 
 // Application environment
-$config['config']['environment'] = 'production';
+//$config['config']['environment'] = 'production';
 
 return $config;

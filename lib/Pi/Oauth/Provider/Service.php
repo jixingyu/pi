@@ -2,12 +2,7 @@
 namespace Pi\Oauth\Provider;
 
 use Pi;
-use Pi\Oauth\Provider\Server\AbstratServer;
-use Pi\Oauth\Provider\Storage\AbstractStorage;
 use Pi\Oauth\Provider\Storage\ModelInterface;
-use Pi\Oauth\Provider\GrantType\AbstractGrantType;
-use Pi\Oauth\Provider\ResponseType\AbstractResponseType;
-use Pi\Oauth\Provider\TokenType\AbstratTokenType;
 use Pi\Oauth\Provider\Result;
 use Pi\Oauth\Provider\Http\Request;
 use Pi\Oauth\Provider\Http\Response;
@@ -95,12 +90,14 @@ class Service
 
     public static function boot($config)
     {
+
+        $config = static::bulidConfig($config);
+
         if (is_string($config)) {
             $config = (array) include $config;
         }
         if (!isset($config['storage']['model_set'])) {
-            $config['storage']['model_set'] = function ($identifier)
-            {
+            $config['storage']['model_set'] = function ($identifier) {
                 return Pi::model($identifier, 'oauth');
             };
         }
@@ -112,6 +109,7 @@ class Service
         if (isset(static::$config[$section]) && isset(static::$config[$section][$identifier])) {
             return static::$config[$section][$identifier];
         }
+
         return null;
     }
 
@@ -130,9 +128,10 @@ class Service
     {
         $key = __FUNCTION__ . '-' . $identifier;
         if (!isset(static::$registry[$key])) {
-            $configs = static::config('storage', $identifier);
+            $configs = static::config('storage', $identifier);;
+            $modelConfig = isset($configs['model_set']) ? $configs['model_set'] : static::config('storage','model_set');
             if (!$model) {
-                $modelSet = isset($configs['model_set']) ? $configs['model_set'] : 'database';
+                $modelSet = isset($modelConfig) ? $modelConfig : 'database';
                 if ($modelSet instanceof \Closure) {
                     $model = $modelSet($identifier);
                 } else {
@@ -148,7 +147,7 @@ class Service
                     $model = $classLoader::load($identifier);
                 }
             }
-            $config = isset($configs[$identifier]) ? $configs[$identifier] : array();
+            $config = isset($configs) ? $configs : array();
             $config['model'] = $model;
             $classStorage = __NAMESPACE__ . '\\Storage\\' . static::canonizeName($identifier);
             static::$registry[$key] = new $classStorage($config);
@@ -179,7 +178,7 @@ class Service
         $key = __FUNCTION__ . '-' . $identifier;
         if (!isset(static::$registry[$key])) {
             $class = __NAMESPACE__ . '\\ResponseType\\' . static::canonizeName($identifier);
-            static::$registry[$key] = new $class(static::config('response_type', $identifier));
+            static::$registry[$key] = new $class();
         }
 
         return static::$registry[$key];
@@ -189,8 +188,9 @@ class Service
     {
         $key = __FUNCTION__ . '-' . $identifier;
         if (!isset(static::$registry[$key])) {
+            $config = static::config('storage', 'access_token');
             $class = __NAMESPACE__ . '\\TokenType\\' . static::canonizeName($identifier);
-            static::$registry[$key] = new $class(static::config('token_type', $identifier));
+            static::$registry[$key] = new $class($config);
         }
 
         return static::$registry[$key];
@@ -244,6 +244,7 @@ class Service
     {
         $class = __NAMESPACE__ . '\\Utility\\Scope';
         $scope = new $class($scopeData);
+
         return $scope;
     }
 
@@ -253,7 +254,80 @@ class Service
         if (null === $resourceOwner) {
             return isset(static::$registry[$key]) ? static::$registry[$key] : null;
         }
-        static::$registry[$key] = $resourceOwner;
+
+        return static::$registry[$key] = $resourceOwner;
+    }
+
+    /**
+    * use config of module to bulid service config
+    * @param  module config
+    * @return service config
+    * @ignore
+    */
+    private static function bulidConfig($data)
+    {
+        $response_type = array();
+        $grant_types = array();
+        if ($data['implicit']) {
+            $response_type[] = 'token';
+        }
+        if ($data['code']) {
+            $response_type[] = 'code';
+            $grant_types['authorization_code'] = 'AuthorizationCode';
+        }
+        if ($data['password']) {
+            $grant_types['password'] = 'Password';
+        }
+        if ($data['client']) {
+            $grant_types['client_credentials'] = 'ClientCredentials';
+        }
+        if ($data['refresh_flag']) {
+            $grant_types['refresh_token'] = 'RefreshToken';
+        }
+
+        return $config = array(
+            'server'    => array(
+                'authorization' => array(
+                    'response_types'    => $response_type,
+                ),
+                'grant' => array(
+                    'grant_types'   => $grant_types,
+                ),
+                'resource'  => array(
+                    'token_type'    => 'bearer',
+                    'www_realm'     => 'service',
+                ),
+            ),
+            'storage'   => array(
+                'model_set'             => array(
+                    'name'      => $data['storage'],
+                    'config'    => array(
+                        'table_prefix'  => 'oauth',
+                    ),
+                ),
+                'client'                => array(
+                    'model_set'             => array(
+                        'name'      => 'database',
+                        'config'    => array(
+                            'table_prefix'  => 'oauth',
+                        ),
+                    ),
+                ),
+                'authorization_code'    => array(
+                    'expires_in'    => $data['code_expires'],
+                    'length'        => $data['code_length'],
+                ),
+                'access_token'  => array(
+                    'token_type'    => 'bearer',
+                    'expires_in'    => $data['access_expires'],
+                    'length'        => $data['access_length'],
+                ),
+                'refresh_token' => array(
+                    'expires_in'    => $data['refresh_expires'],
+                    'length'        => $data['refresh_length'],
+                ),
+            ),
+        );
     }
 }
 
@@ -262,47 +336,55 @@ class Service
  */
 /*
 $config = array(
-    'server'    => array(
-        'authorization' => array(
-            'response_types'    => array(
-                'code', 'token',
-            ),
-        ),
-        'grant' => array(
-            'grant_types'   => array(
-                'authorization_code'    => 'AuthorizationCode',
-                'password'              => 'Password',
-                'client_credentials'    => 'ClientCredentials',
-                'refresh_token'         => 'RefreshToken',
-                'urn:ietf:params:oauth:grant-type:jwt-bearer'
+            'server'    => array(
+                'authorization' => array(
+                    'response_types'    => array(
+                        'code', 'token',
+                    ),
+                 ),
+                'grant' => array(
+                    'grant_types'   => array(
+                        'authorization_code'    => 'AuthorizationCode',
+                        'password'              => 'Password',
+                        'client_credentials'    => 'ClientCredentials',
+                        'refresh_token'         => 'RefreshToken',
+                        'urn:ietf:params:oauth:grant-type:jwt-bearer'
                                         => 'JwtBearer',
+                    ),
+                ),
+                'resource'  => array(
+                    'token_type'    => 'bearer',
+                    'www_realm'     => 'service',
+                ),
             ),
-        ),
-        'resource'  => array(
-            'token_type'    => 'bearer',
-            'www_realm'     => 'service',
-        ),
-    ),
-    'storage'   => array(
-        'model_set'             => array(
-            'name'      => 'database',
-            'config'    => array(
-                'table_prefix'  => 'oauth',
-            ),
-        ),
-        'authorization_code'    => array(
-            'expires_in'    => 30,
-            'length'        => 40,
-        ),
-        'access_token'  => array(
-            'token_type'    => 'bearer',
-            'expires_in'    => 3600,
-            'length'        => 40,
-        ),
-        'refresh_token' => array(
-            'expires_in'    => 1209600,
-            'length'        => 40,
-        ),
-    ),
-);
+            'storage'   => array(
+                'model_set'             => array(
+                    'name'      => 'database',
+                    'config'    => array(
+                        'table_prefix'  => 'oauth',
+                    ),
+                ),
+                'client' => array(
+                    'model_set'             => array(
+                        'name'      => 'database',
+                        'config'    => array(
+                            'table_prefix'  => 'oauth',
+                        ),
+                    ),
+                ),
+                'authorization_code'    => array(
+                    'expires_in'    => 300,
+                    'length'        => 40,
+                ),
+                'access_token'  => array(
+                    'token_type'    => 'bearer',
+                    'expires_in'    => 3600,
+                    'length'        => 40,
+                ),
+                'refresh_token' => array(
+                    'expires_in'    => 1209600,
+                    'length'        => 40,
+                ),
+            )
+        );
 */

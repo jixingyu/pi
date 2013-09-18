@@ -1,24 +1,14 @@
 <?PHP
 /**
- * Pi Master-Slave Table Gateway
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @package         Pi\Db
- * @subpackage      Table
- * @since           3.0
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Pi\Db\Table;
+
 use Pi;
 use Pi\Application\Db;
 use Zend\Db\TableGateway\TableGateway;
@@ -26,22 +16,26 @@ use Zend\Db\Sql\Sql;
 use Zend\Db\ResultSet\ResultSet;
 use Zend\Db\Metadata\Metadata;
 
+/**
+ *  Pi Master-Slave Table Gateway
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 class MasterSlaveTableGateway extends AbstractTableGateway
 {
     /**#@+
      * Master-Slave
      */
-    /**
-     * @var Adapter
-     */
+    /** @var Adapter Master adapter */
     protected $masterAdapter = null;
 
-    /**
-     * @var Adapter
-     */
+    /** @var Adapter Slave adapter */
     protected $slaveAdapter = null;
     /**#@-*/
 
+    /**
+     * {@inheritDoc}
+     */
     public function initialize()
     {
         if ($this->initialized == true) {
@@ -49,7 +43,9 @@ class MasterSlaveTableGateway extends AbstractTableGateway
         }
 
         if (!$this->masterAdapter && !$this->slaveAdapter) {
-            throw new \Exception('Master/Slave adapters must be configured in initialize()');
+            throw new \Exception(
+                'Master/Slave adapters must be configured in initialize()'
+            );
         }
         $this->adapter = $this->adapter ?: $this->slaveAdapter;
 
@@ -74,51 +70,42 @@ class MasterSlaveTableGateway extends AbstractTableGateway
     }
 
     /**
-     * Select
-     *
-     * @param  string $where
-     * @return type
+     * {@inheritDoc}
      */
     public function select($where = null)
     {
         $this->adapter = $this->slaveAdapter;
+
         return parent::select($where);
     }
 
     /**
-     * Insert
-     *
-     * @param  string $set
-     * @return type
+     * {@inheritDoc}
      */
     public function insert($set)
     {
         $this->adapter = $this->masterAdapter;
+
         return parent::insert($set);
     }
 
     /**
-     * Update
-     *
-     * @param  string $set
-     * @param  string $where
-     * @return type
+     * {@inheritDoc}
      */
     public function update($set, $where = null)
     {
         $this->adapter = $this->masterAdapter;
+
         return parent::update($set, $where);
     }
 
     /**
-     * Delete
-     *
-     * @param  string $where
-     * @return type
+     * {@inheritDoc}
      */
     public function delete($where)
     {
         $this->adapter = $this->masterAdapter;
+        
         return parent::delete($where);
     }
 }

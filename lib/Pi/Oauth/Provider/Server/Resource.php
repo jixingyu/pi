@@ -25,6 +25,7 @@ class Resource extends AbstractServer
         }
 
         parent::setConfig($config);
+
         return $this;
     }
 
@@ -33,6 +34,7 @@ class Resource extends AbstractServer
         if (!$this->tokenType instanceof TokenType\AbstractTokenType) {
             $this->setTokenType();
         }
+
         return $this->tokenType;
     }
 
@@ -43,6 +45,7 @@ class Resource extends AbstractServer
         } else {
             $this->tokenType = Service::tokenType($tokenType);
         }
+
         return $this;
     }
 
@@ -50,7 +53,10 @@ class Resource extends AbstractServer
     {
         $request = $this->getRequest();
         $tokenParam = $this->getTokenType()->getAccessToken($request);
-        $this->result = $this->getTokenType()->getResult();
+        if (!$tokenParam) {
+            $this->result = $this->getTokenType()->getResult();
+        }
+
         return $tokenParam;
     }
 
@@ -58,6 +64,7 @@ class Resource extends AbstractServer
     {
         $this->setRequest($request);
         $scope = $request->getRequest('scope');
+        $clientid = $request->getRequest('client_id');
         $tokenParam  = $this->validateRequest();
         if ($this->result && $this->result->errorType()) {
             return false;
@@ -66,6 +73,7 @@ class Resource extends AbstractServer
         // Access token was not provided
         if (!$tokenParam) {
             $this->setError('invalid_request');
+
             return false;
         }
 
@@ -73,6 +81,25 @@ class Resource extends AbstractServer
         $tokenData = Service::storage('access_token')->get($tokenParam);
         if (!$tokenData) {
             $this->setError('invalid_token', 'The access token provided is invalid');
+
+            return false;
+        }
+
+        /**
+        * check client_id
+        */
+        if ($clientid != $tokenData['client_id']) {
+            $this->setError('invalid_request','The client and token is not match');
+
+            return false;
+        }
+
+        /**
+        *check expires
+        */
+        if ($tokenData['expires'] < time()) {
+            $this->setError('invalid_token', 'The access token provided is expired');
+
             return false;
         }
 
@@ -83,9 +110,12 @@ class Resource extends AbstractServer
             $requiredScope = Service::scope($scope);
             if (!$grantedScope->hasScope($requiredScope)) {
                 $this->setError('insufficient_scope');
+
                 return false;
             }
         }
+
+        $this->setResult($tokenData);
 
         return true;
     }

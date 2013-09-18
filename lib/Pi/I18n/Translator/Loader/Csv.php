@@ -1,20 +1,10 @@
 <?php
 /**
- * Pi Engine translation loader
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @package         Pi\Translator
- * @since           3.0
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Pi\I18n\Translator\Loader;
@@ -22,13 +12,29 @@ namespace Pi\I18n\Translator\Loader;
 use Pi;
 use Zend\I18n\Translator\Loader\FileLoaderInterface;
 use Zend\I18n\Translator\TextDomain;
+use Zend\I18n\Exception;
+use Zend\Stdlib\ErrorHandler;
 
+/**
+ * CSV file content loader
+ *
+ * @see http://www.php.net/manual/en/function.fgetcsv.php
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 class Csv implements FileLoaderInterface
 {
+    /**
+     * File extension
+     * @var string
+     */
     protected $fileExtension = '.csv';
 
+    /**
+     * Options for CSV file
+     * @var array
+     */
     protected $options = array(
-        'delimiter' => ';',
+        'delimiter' => ',',
         'length'    => 0,
         'enclosure' => '"',
     );
@@ -37,50 +43,57 @@ class Csv implements FileLoaderInterface
      * Set options
      *
      * @param  array $options
-     * @return Csv
+     * @return self
      */
     public function setOptions($options = array())
     {
         $this->options = array_merge($this->options, $options);
+
         return $this;
     }
 
     /**
-     * load(): defined by FileLoaderInterface.
+     * Load a CSV file content
      *
-     * @see    LoaderInterface::load()
-     * @param  string $locale
-     * @param  string $filename
-     * @return TextDomain|null
+     * {@inheritdoc}
+     * @return TextDomain|false
      */
     public function load($locale, $filename)
     {
         $filename .= $this->fileExtension;
         $messages = array();
 
-        if (is_file($filename) && is_readable($filename)) {
-            $file = @fopen($filename, 'rb');
-            while(($data = fgetcsv($file, $this->options['length'], $this->options['delimiter'], $this->options['enclosure'])) !== false) {
-                if (substr($data[0], 0, 1) === '#') {
-                    continue;
-                }
+        ErrorHandler::start();
+        $file = fopen($filename, 'rb');
+        $error = ErrorHandler::stop();
+        if (false === $file) {
+            return false;
+        }
 
-                if (!isset($data[1])) {
-                    continue;
-                }
+        while(($data = fgetcsv(
+            $file,
+            $this->options['length'],
+            $this->options['delimiter'],
+            $this->options['enclosure']
+        )) !== false) {
+            if (substr($data[0], 0, 1) === '#') {
+                continue;
+            }
 
-                if (count($data) == 2) {
-                    $messages[$data[0]] = $data[1];
-                } else {
-                    $singular = array_shift($data);
-                    $messages[$singular] = $data;
-                }
+            if (!isset($data[1])) {
+                continue;
+            }
+
+            if (count($data) == 2) {
+                $messages[$data[0]] = $data[1];
+            } else {
+                $singular = array_shift($data);
+                $messages[$singular] = $data;
             }
         }
 
-        return $messages;
-
         $textDomain = new TextDomain($messages);
+
         return $textDomain;
     }
 }

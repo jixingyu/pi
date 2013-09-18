@@ -1,34 +1,23 @@
 <?php
 /**
- * Paginator
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Pi\Paginator
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Pi\Paginator;
 
+use Pi;
 use ArrayIterator;
 use Countable;
 use Iterator;
-use IteratorAggregate;
 use Traversable;
-//use Zend\Cache\Storage\IteratorInterface as CacheIterator;
-//use Zend\Cache\Storage\StorageInterface as CacheStorage;
 use Zend\Db\Sql;
-use Zend\Db\Table\AbstractRowset as DbAbstractRowset;
-use Zend\Db\Table\Select as DbTableSelect;
+use Zend\Db\ResultSet\AbstractResultSet;
+use Zend\Db\TableGateway\AbstractTableGateway;
+use Zend\Db\Sql\Select as DbSelect;
 use Zend\Filter\FilterInterface;
 use Zend\Json\Json;
 use Zend\Paginator\Adapter\AdapterInterface;
@@ -36,178 +25,207 @@ use Zend\Paginator\ScrollingStyle\ScrollingStyleInterface;
 use Zend\Stdlib\ArrayUtils;
 use Zend\View;
 use Zend\Paginator\Exception;
+use Zend\Paginator\Paginator as Pagit; // Solely for other API calls, shit!!!
 
-// Solely for other API calls, shit!!!
-use Zend\Paginator\Paginator as Pagit;
-
-class Paginator extends Pagit //*/implements Countable, IteratorAggregate
+/**
+ * Paginator handler
+ *
+ * - Create paginator with factory
+ *
+ * ```
+ *  $paginator = Paginator::factory(5, array(
+ *      'item_count_per_page'   => $limit,
+ *      // or 'limit'           => $limit,
+ *      'current_page_number'   => $page,
+ *      // or 'page'            => $page,
+ *      'url_options'           => array(
+ *          'page_param'    => 'p',
+ *          'total_param'   => 't',
+ *          'params'        => array(
+ *              'flag'      => $flag,
+ *          ),
+ *      ),
+ *  ));
+ *
+ *  $paginator = Paginator::factory(5, array(
+ *      'item_count_per_page'   => $limit,  // or 'limit' => $limit
+ *      'current_page_number'   => $page,   // or 'page' => $page
+ *      'url_options'           => array(
+ *          'template'=> $this->url('', array(
+ *              'p' => '__page__',
+ *              't' => '__total__',
+ *              'f' => $flag,
+ *          ),
+ *      ),
+ *  ));
+ *
+ *  $paginator = Paginator::factory(5, array(
+ *      'limit' => $limit,
+ *      'page'  => $page,
+ *      'url_options'           => array(
+ *          'template'=> '/url/to/page/p/__page__/t/__total__/f/{$flag}',
+ *      ),
+ *  ));
+ * ```
+ *
+ * - Create paginator with constructor
+ *
+ * ```
+ *  $paginator = new Paginator(5);
+ *  $paginator->setOptions(array(
+ *      'item_count_per_page'   => $limit,  // or 'limit' => $limit
+ *      'current_page_number'   => $page,   // or 'page' => $page
+ *      'url_options'           => array(
+ *          'page_param'    => 'p',
+ *          'total_param'   => 't',
+ *          'params'        => array(
+ *              'flag'      => $flag,
+ *          ),
+ *      ),
+ *  ));
+ *
+ *  $paginator->setOptions(array(
+ *      'item_count_per_page'   => $limit,  // or 'limit' => $limit
+ *      'current_page_number'   => $page,   // or 'page' => $page
+ *      'url_options'           => array(
+ *          'template'=> $this->url('', array(
+ *              'p' => '__page__',
+ *              't' => '__total__',
+ *              'f' => $flag,
+ *          ),
+ *      ),
+ *  ));
+ *
+ *  $paginator->setOptions(array(
+ *      'item_count_per_page'   => $limit,  // or 'limit' => $limit
+ *      'current_page_number'   => $page,   // or 'page' => $page
+ *      'url_options'           => array(
+ *          'template'=> '/url/to/page/p/__page__/t/__total__/f/{$flag}',
+ *      ),
+ *  ));
+ * ```
+ * {@inheritDoc}
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
+class Paginator extends Pagit
 {
     /**
-     * Specifies that the factory should try to detect the proper adapter type first
-     *
-     * @var string
-     */
-    //const INTERNAL_ADAPTER = 'Zend\Paginator\Adapter\Internal';
-
-    /**
-     * The cache tag prefix used to namespace Paginator results in the cache
-     *
-     */
-    //const CACHE_TAG_PREFIX = 'Zend_Paginator_';
-
-    /**
-     * Adapter plugin manager
-     *
-     * @var AdapterPluginManager
-     */
-    //protected static $adapters = null;
-
-    /**
      * Configuration file
-     *
      * @var array|null
      */
     protected static $config = null;
 
     /**
      * Default scrolling style
-     *
      * @var string
      */
     protected static $defaultScrollingStyle = 'Sliding';
 
     /**
      * Default item count per page
-     *
      * @var int
      */
     protected static $defaultItemCountPerPage = 10;
 
     /**
      * Scrolling style plugin manager
-     *
      * @var ScrollingStylePluginManager
      */
     protected static $scrollingStyles = null;
 
     /**
-     * Cache object
-     *
-     * @var CacheStorage
-     */
-    //protected static $cache;
-
-    /**
-     * Enable or disable the cache by Zend\Paginator\Paginator instance
-     *
-     * @var bool
-     */
-    //protected $cacheEnabled = true;
-
-    /**
      * Adapter
-     *
      * @var AdapterInterface
      */
     protected $adapter = null;
 
     /**
      * Number of items in the current page
-     *
-     * @var integer
+     * @var int|null
      */
     protected $currentItemCount = null;
 
     /**
      * Current page items
-     *
      * @var Traversable
      */
     protected $currentItems = null;
 
     /**
      * Current page number (starting from 1)
-     *
      * @var integer
      */
     protected $currentPageNumber = 1;
 
     /**
      * Result filter
-     *
      * @var FilterInterface
      */
     protected $filter = null;
 
     /**
      * Number of items per page
-     *
-     * @var integer
+     * @var int|null
      */
     protected $itemCountPerPage = null;
 
     /**
      * Number of pages
-     *
-     * @var integer
+     * @var int|null
      */
     protected $pageCount = null;
 
     /**
      * Number of local pages (i.e., the number of discrete page numbers
      * that will be displayed, including the current page number)
-     *
      * @var integer
      */
     protected $pageRange = 10;
 
     /**
      * Pages
-     *
-     * @var array
+     * @var array|null
      */
     protected $pages = null;
 
     /**
      * View instance used for self rendering
-     *
      * @var \Zend\View\Renderer\RendererInterface
      */
     protected $view = null;
 
     /**
-     * Options for URL assemble
-     *                  template - string
-     *                  pageParam - string
-     *                  totalParam - string
-     *                  params - array
-     *                  router - object
-     *                  route - string
-     *
+     * Options for URL assemble:
+     * template, page_param, total_param, params, router, route
      * @var array
      */
     protected $urlOptions = array(
-        'pageParam' => 'p',
-        'route'     => 'default',
+        'page_param'    => 'p',
+        'route'         => 'default',
     );
+
+    /** @var string Pattern for URL replacement */
+    const PAGE_PATTERN = '__page__';
+    const TOTAL_PATTERN = '__total__';
 
     /**
      * Factory.
      *
-     * @param  mixed  $data
+     * @param mixed $data
+     * @param array $options
      * @throws Exception\InvalidArgumentException
-     * @return Paginator
+     * @return self
      */
-    public static function factory($data)
+    public static function factory($data, $options = array())
     {
         if ($data instanceof AdapterAggregateInterface) {
-            return new self($data->getPaginatorAdapter());
+            return new static($data->getPaginatorAdapter());
         }
 
         if (is_array($data)) {
             $adapter = 'arrayAdapter';
-        } elseif ($data instanceof DbTableSelect) {
-            $adapter = 'dbTableSelect';
+        } elseif ($data instanceof AbstractTableGateway) {
+            $adapter = 'dbTableGateway';
         } elseif ($data instanceof DbSelect) {
             $adapter = 'dbSelect';
         } elseif ($data instanceof Iterator) {
@@ -216,17 +234,80 @@ class Paginator extends Pagit //*/implements Countable, IteratorAggregate
             $adapter = 'null';
         } else {
             $type = (is_object($data)) ? get_class($data) : gettype($data);
-            throw new Exception\InvalidArgumentException('No adapter for type ' . $type);
+            throw new Exception\InvalidArgumentException(
+                'No adapter for type ' . $type
+            );
         }
 
         $adapter = static::createAdapter($adapter, $data);
-        return new self($adapter);
+
+        $paginator = new static($adapter);
+        if ($options) {
+            $paginator->setOptions($options);
+        }
+
+        return $paginator;
+    }
+
+    /**
+     * Canonize paginator options
+     *
+     * Transform:
+     * - limit => item_count_per_page
+     * - page => current_page_number
+     *
+     * 
+     * @param array $options
+     *
+     * @return array
+     */
+    protected function canonizeOptions(array $options)
+    {
+        if (isset($options['limit'])) {
+            $options['item_count_per_page'] = $options['limit'];
+            unset($options['limit']);
+        }
+        if (isset($options['page'])) {
+            $options['current_page_number'] = $options['page'];
+            unset($options['page']);
+        }
+
+        return $options;
+    }
+
+    /**
+     * Set options
+     *
+     * @param array|\Traversable $options
+     * @return $this
+     * @throws Exception\InvalidArgumentException
+     */
+    public function setOptions($options)
+    {
+        if ($options instanceof Traversable) {
+            $options = ArrayUtils::iteratorToArray($options);
+        }
+        if (!is_array($options)) {
+            throw new Exception\InvalidArgumentException(
+                __METHOD__ . ' expects an array or Traversable'
+            );
+        }
+        $options = $this->canonizeOptions($options);
+        foreach ($options as $key => $value) {
+            $method = 'set' . str_replace('_', '', $key);
+            if (method_exists($this, $method)) {
+                $this->$method($value);
+            }
+        }
+
+        return $this;
     }
 
     /**
      * Set a global config
      *
      * @param array|\Traversable $config
+     * @return void
      * @throws Exception\InvalidArgumentException
      */
     public static function setGlobalConfig($config)
@@ -235,7 +316,9 @@ class Paginator extends Pagit //*/implements Countable, IteratorAggregate
             $config = ArrayUtils::iteratorToArray($config);
         }
         if (!is_array($config)) {
-            throw new Exception\InvalidArgumentException(__METHOD__ . ' expects an array or Traversable');
+            throw new Exception\InvalidArgumentException(
+                __METHOD__ . ' expects an array or Traversable'
+            );
         }
 
         static::$config = $config;
@@ -246,7 +329,8 @@ class Paginator extends Pagit //*/implements Countable, IteratorAggregate
             static::setScrollingStylePluginManager($adapters);
         }
 
-        $scrollingStyle = isset($config['scrolling_style']) ? $config['scrolling_style'] : null;
+        $scrollingStyle = isset($config['scrolling_style'])
+            ? $config['scrolling_style'] : null;
 
         if ($scrollingStyle != null) {
             static::setDefaultScrollingStyle($scrollingStyle);
@@ -262,11 +346,12 @@ class Paginator extends Pagit //*/implements Countable, IteratorAggregate
      */
     public static function createAdapter($adapter, $data)
     {
-        $adapterClass = '%s\\Paginator\\Adapter\\' . ucfirst($adapter);
+        $adapterClass = '%s\Paginator\Adapter\\' . ucfirst($adapter);
         $class = sprintf($adapterClass, 'Pi');
         if (!class_exists($class)) {
             $class = sprintf($adapterClass, 'Zend');
         }
+
         return new $class($data);
     }
 
@@ -278,36 +363,13 @@ class Paginator extends Pagit //*/implements Countable, IteratorAggregate
      */
     protected function createScrollingStyle($style)
     {
-        $styleClass = '%s\\Paginator\\ScrollingStyle\\' . ucfirst($style);
+        $styleClass = '%s\Paginator\ScrollingStyle\\' . ucfirst($style);
         $class = sprintf($styleClass, 'Pi');
         if (!class_exists($class)) {
             $class = sprintf($styleClass, 'Zend');
         }
+
         return new $class;
-    }
-
-    /**
-     * Set a global config
-     *
-     * @param array|\Traversable $config
-     * @throws Exception\InvalidArgumentException
-     */
-    public static function setOptions($config)
-    {
-        if ($config instanceof Traversable) {
-            $config = ArrayUtils::iteratorToArray($config);
-        }
-        if (!is_array($config)) {
-            throw new Exception\InvalidArgumentException(__METHOD__ . ' expects an array or Traversable');
-        }
-
-        static::$config = $config;
-
-        $scrollingStyle = isset($config['scrolling_style']) ? $config['scrolling_style'] : null;
-
-        if ($scrollingStyle != null) {
-            static::setDefaultScrollingStyle($scrollingStyle);
-        }
     }
 
     /**
@@ -334,6 +396,7 @@ class Paginator extends Pagit //*/implements Countable, IteratorAggregate
      * Set the default item count per page
      *
      * @param int $count
+     * @return void
      */
     public static function setDefaultItemCountPerPage($count)
     {
@@ -343,10 +406,12 @@ class Paginator extends Pagit //*/implements Countable, IteratorAggregate
     /**
      * Sets the default scrolling style.
      *
-     * @param  string $scrollingStyle
+     * @param string $scrollingStyle
+     * @return void
      */
-    public static function setDefaultScrollingStyle($scrollingStyle = 'Sliding')
-    {
+    public static function setDefaultScrollingStyle(
+        $scrollingStyle = 'Sliding'
+    ) {
         static::$defaultScrollingStyle = $scrollingStyle;
     }
 
@@ -364,8 +429,9 @@ class Paginator extends Pagit //*/implements Countable, IteratorAggregate
             $this->adapter = $adapter->getPaginatorAdapter();
         } else {
             throw new Exception\InvalidArgumentException(
-                'Zend_Paginator only accepts instances of the type ' .
-                'Zend\Paginator\Adapter\AdapterInterface or Zend\Paginator\AdapterAggregateInterface.'
+                'Zend_Paginator only accepts instances of the type '
+                . 'Zend\Paginator\Adapter\AdapterInterface'
+                . ' or Zend\Paginator\AdapterAggregateInterface.'
             );
         }
 
@@ -387,7 +453,7 @@ class Paginator extends Pagit //*/implements Countable, IteratorAggregate
     }
 
     /**
-     * Serializes the object as a string.  Proxies to {@link render()}.
+     * Serializes the object as a string. Proxies to {@link render()}.
      *
      * @return string
      */
@@ -406,7 +472,7 @@ class Paginator extends Pagit //*/implements Countable, IteratorAggregate
     /**
      * Returns the number of pages.
      *
-     * @return integer
+     * @return int
      */
     public function count()
     {
@@ -420,7 +486,7 @@ class Paginator extends Pagit //*/implements Countable, IteratorAggregate
     /**
      * Returns the total number of items available.
      *
-     * @return integer
+     * @return int
      */
     public function getTotalItemCount()
     {
@@ -430,12 +496,14 @@ class Paginator extends Pagit //*/implements Countable, IteratorAggregate
     /**
      * Returns the absolute item number for the specified item.
      *
-     * @param  integer $relativeItemNumber Relative item number
-     * @param  integer $pageNumber Page number
-     * @return integer
+     * @param  int $relativeItemNumber Relative item number
+     * @param  int $pageNumber Page number
+     * @return int
      */
-    public function getAbsoluteItemNumber($relativeItemNumber, $pageNumber = null)
-    {
+    public function getAbsoluteItemNumber(
+        $relativeItemNumber,
+        $pageNumber = null
+    ) {
         $relativeItemNumber = $this->normalizeItemNumber($relativeItemNumber);
 
         if ($pageNumber == null) {
@@ -444,7 +512,8 @@ class Paginator extends Pagit //*/implements Countable, IteratorAggregate
 
         $pageNumber = $this->normalizePageNumber($pageNumber);
 
-        return (($pageNumber - 1) * $this->getItemCountPerPage()) + $relativeItemNumber;
+        return (($pageNumber - 1) * $this->getItemCountPerPage())
+            + $relativeItemNumber;
     }
 
     /**
@@ -460,12 +529,13 @@ class Paginator extends Pagit //*/implements Countable, IteratorAggregate
     /**
      * Returns the number of items for the current page.
      *
-     * @return integer
+     * @return int
      */
     public function getCurrentItemCount()
     {
         if ($this->currentItemCount === null) {
-            $this->currentItemCount = $this->getItemCount($this->getCurrentItems());
+            $this->currentItemCount =
+                $this->getItemCount($this->getCurrentItems());
         }
 
         return $this->currentItemCount;
@@ -479,7 +549,8 @@ class Paginator extends Pagit //*/implements Countable, IteratorAggregate
     public function getCurrentItems()
     {
         if ($this->currentItems === null) {
-            $this->currentItems = $this->getItemsByPage($this->getCurrentPageNumber());
+            $this->currentItems =
+                $this->getItemsByPage($this->getCurrentPageNumber());
         }
 
         return $this->currentItems;
@@ -488,7 +559,7 @@ class Paginator extends Pagit //*/implements Countable, IteratorAggregate
     /**
      * Returns the current page number.
      *
-     * @return integer
+     * @return int
      */
     public function getCurrentPageNumber()
     {
@@ -498,8 +569,8 @@ class Paginator extends Pagit //*/implements Countable, IteratorAggregate
     /**
      * Sets the current page number.
      *
-     * @param  integer $pageNumber Page number
-     * @return Paginator $this
+     * @param  int $pageNumber Page number
+     * @return self
      */
     public function setCurrentPageNumber($pageNumber)
     {
@@ -524,7 +595,7 @@ class Paginator extends Pagit //*/implements Countable, IteratorAggregate
      * Set a filter chain
      *
      * @param  FilterInterface $filter
-     * @return Paginator
+     * @return self
      */
     public function setFilter(FilterInterface $filter)
     {
@@ -534,8 +605,9 @@ class Paginator extends Pagit //*/implements Countable, IteratorAggregate
     }
 
     /**
-     * Returns an item from a page.  The current page is used if there's no
-     * page specified.
+     * Returns an item from a page.
+     *
+     * The current page is used if there's no page specified.
      *
      * @param  integer $itemNumber Item number (1 to itemCountPerPage)
      * @param  integer $pageNumber
@@ -554,7 +626,9 @@ class Paginator extends Pagit //*/implements Countable, IteratorAggregate
         $itemCount = $this->getItemCount($page);
 
         if ($itemCount == 0) {
-            throw new Exception\InvalidArgumentException('Page ' . $pageNumber . ' does not exist');
+            throw new Exception\InvalidArgumentException(
+                'Page ' . $pageNumber . ' does not exist'
+            );
         }
 
         if ($itemNumber < 0) {
@@ -564,8 +638,10 @@ class Paginator extends Pagit //*/implements Countable, IteratorAggregate
         $itemNumber = $this->normalizeItemNumber($itemNumber);
 
         if ($itemNumber > $itemCount) {
-            throw new Exception\InvalidArgumentException('Page ' . $pageNumber . ' does not'
-                                             . ' contain item number ' . $itemNumber);
+            throw new Exception\InvalidArgumentException(
+                'Page ' . $pageNumber . ' does not'
+                . ' contain item number ' . $itemNumber
+            );
         }
 
         return $page[$itemNumber - 1];
@@ -574,7 +650,7 @@ class Paginator extends Pagit //*/implements Countable, IteratorAggregate
     /**
      * Returns the number of items per page.
      *
-     * @return integer
+     * @return int
      */
     public function getItemCountPerPage()
     {
@@ -588,8 +664,8 @@ class Paginator extends Pagit //*/implements Countable, IteratorAggregate
     /**
      * Sets the number of items per page.
      *
-     * @param  integer $itemCountPerPage
-     * @return Paginator $this
+     * @param int $itemCountPerPage
+     * @return self
      */
     public function setItemCountPerPage($itemCountPerPage = -1)
     {
@@ -608,7 +684,7 @@ class Paginator extends Pagit //*/implements Countable, IteratorAggregate
      * Returns the number of items in a collection.
      *
      * @param  mixed $items Items
-     * @return integer
+     * @return int
      */
     public function getItemCount($items)
     {
@@ -616,7 +692,8 @@ class Paginator extends Pagit //*/implements Countable, IteratorAggregate
 
         if (is_array($items) || $items instanceof Countable) {
             $itemCount = count($items);
-        } elseif ($items instanceof Traversable) { // $items is something like LimitIterator
+        } elseif ($items instanceof Traversable) {
+            // $items is something like LimitIterator
             $itemCount = iterator_count($items);
         }
 
@@ -626,16 +703,17 @@ class Paginator extends Pagit //*/implements Countable, IteratorAggregate
     /**
      * Returns the items for a given page.
      *
-     * @param integer $pageNumber
+     * @param int $pageNumber
      * @return mixed
      */
     public function getItemsByPage($pageNumber)
     {
         $pageNumber = $this->normalizePageNumber($pageNumber);
-
         $offset = ($pageNumber - 1) * $this->getItemCountPerPage();
-
-        $items = $this->adapter->getItems($offset, $this->getItemCountPerPage());
+        $items = $this->adapter->getItems(
+            $offset,
+            $this->getItemCountPerPage()
+        );
 
         $filter = $this->getFilter();
 
@@ -661,14 +739,15 @@ class Paginator extends Pagit //*/implements Countable, IteratorAggregate
         try {
             return $this->getCurrentItems();
         } catch (\Exception $e) {
-            throw new Exception\RuntimeException('Error producing an iterator', null, $e);
+            throw new Exception\RuntimeException('Error producing an iterator',
+                                                 null, $e);
         }
     }
 
     /**
      * Returns the page range (see property declaration above).
      *
-     * @return integer
+     * @return int
      */
     public function getPageRange()
     {
@@ -678,8 +757,8 @@ class Paginator extends Pagit //*/implements Countable, IteratorAggregate
     /**
      * Sets the page range (see property declaration above).
      *
-     * @param  integer $pageRange
-     * @return Paginator $this
+     * @param  int $pageRange
+     * @return self
      */
     public function setPageRange($pageRange)
     {
@@ -706,8 +785,8 @@ class Paginator extends Pagit //*/implements Countable, IteratorAggregate
     /**
      * Returns a subset of pages within a given range.
      *
-     * @param  integer $lowerBound Lower bound of the range
-     * @param  integer $upperBound Upper bound of the range
+     * @param  int $lowerBound Lower bound of the range
+     * @param  int $upperBound Upper bound of the range
      * @return array
      */
     public function getPagesInRange($lowerBound, $upperBound)
@@ -717,7 +796,9 @@ class Paginator extends Pagit //*/implements Countable, IteratorAggregate
 
         $pages = array();
 
-        for ($pageNumber = $lowerBound; $pageNumber <= $upperBound; $pageNumber++) {
+        for ($pageNumber = $lowerBound;
+            $pageNumber <= $upperBound;
+            $pageNumber++) {
             $pages[$pageNumber] = (object) array(
                 'number'    => $pageNumber,
                 'url'       => $this->buildUrl($pageNumber),
@@ -747,7 +828,7 @@ class Paginator extends Pagit //*/implements Countable, IteratorAggregate
      * Sets the view object.
      *
      * @param  \Zend\View\Renderer\RendererInterface $view
-     * @return Paginator
+     * @return self
      */
     public function setView(View\Renderer\RendererInterface $view = null)
     {
@@ -759,8 +840,8 @@ class Paginator extends Pagit //*/implements Countable, IteratorAggregate
     /**
      * Brings the item number in range of the page.
      *
-     * @param  integer $itemNumber
-     * @return integer
+     * @param  int $itemNumber
+     * @return int
      */
     public function normalizeItemNumber($itemNumber)
     {
@@ -780,8 +861,8 @@ class Paginator extends Pagit //*/implements Countable, IteratorAggregate
     /**
      * Brings the page number in range of the paginator.
      *
-     * @param  integer $pageNumber
-     * @return integer
+     * @param  int $pageNumber
+     * @return int
      */
     public function normalizePageNumber($pageNumber)
     {
@@ -826,7 +907,7 @@ class Paginator extends Pagit //*/implements Countable, IteratorAggregate
     {
         $currentItems = $this->getCurrentItems();
 
-        if ($currentItems instanceof DbAbstractRowset) {
+        if ($currentItems instanceof AbstractResultSet) {
             return Json::encode($currentItems->toArray());
         } else {
             return Json::encode($currentItems);
@@ -836,11 +917,13 @@ class Paginator extends Pagit //*/implements Countable, IteratorAggregate
     /**
      * Calculates the page count.
      *
-     * @return integer
+     * @return int
      */
     protected function _calculatePageCount()
     {
-        return (integer) ceil($this->getAdapter()->count() / $this->getItemCountPerPage());
+        return (int) ceil(
+            $this->getAdapter()->count() / $this->getItemCountPerPage()
+        );
     }
 
     /**
@@ -893,8 +976,10 @@ class Paginator extends Pagit //*/implements Countable, IteratorAggregate
             $pages->currentItemCount = $this->getCurrentItemCount();
             $pages->itemCountPerPage = $this->getItemCountPerPage();
             $pages->totalItemCount   = $this->getTotalItemCount();
-            $pages->firstItemNumber  = (($currentPageNumber - 1) * $this->getItemCountPerPage()) + 1;
-            $pages->lastItemNumber   = $pages->firstItemNumber + $pages->currentItemCount - 1;
+            $pages->firstItemNumber  =
+                (($currentPageNumber - 1) * $this->getItemCountPerPage()) + 1;
+            $pages->lastItemNumber   =
+                $pages->firstItemNumber + $pages->currentItemCount - 1;
         }
 
         return $pages;
@@ -917,7 +1002,9 @@ class Paginator extends Pagit //*/implements Countable, IteratorAggregate
             case 'object':
                 if (!$scrollingStyle instanceof ScrollingStyleInterface) {
                     throw new Exception\InvalidArgumentException(
-                        'Scrolling style must implement Zend\Paginator\ScrollingStyle\ScrollingStyleInterface'
+                        'Scrolling style must implement'
+                        . ' Zend\Paginator\ScrollingStyle\\'
+                        . 'ScrollingStyleInterface'
                     );
                 }
 
@@ -931,8 +1018,9 @@ class Paginator extends Pagit //*/implements Countable, IteratorAggregate
 
             default:
                 throw new Exception\InvalidArgumentException(
-                    'Scrolling style must be a class ' .
-                    'name or object implementing Zend\Paginator\ScrollingStyle\ScrollingStyleInterface'
+                    'Scrolling style must be a class name or object'
+                    . ' implementing Zend\Paginator\ScrollingStyle\\'
+                    . 'ScrollingStyleInterface'
                 );
         }
     }
@@ -940,15 +1028,18 @@ class Paginator extends Pagit //*/implements Countable, IteratorAggregate
     /**
      * Set up options for URL assemble
      *
-     * @param array $options
-     *                  template - string
-     *                  pageParam - string
-     *                  totalParam - string
-     *                  params - array
-     *                  router - object
-     *                  route - string
+     * Options:
      *
-     * @return Paginator
+     * - template: template content for generating paginator
+     * - page_param: parameter name for page number
+     * - total_param: parameter name for total page count
+     * - params: array of extra parameters
+     * - router: object of router
+     * - route: route name
+     *
+     * @param array $options
+     *
+     * @return self
      */
     public function setUrlOptions($options)
     {
@@ -966,24 +1057,42 @@ class Paginator extends Pagit //*/implements Countable, IteratorAggregate
     public function buildUrl($page)
     {
         if (!empty($this->urlOptions['template'])) {
-            $url = str_replace(array('%page%', '%total%'), array($page, $this->count()), $this->urlOptions['template']);
+            $url = str_replace(
+                array(static::PAGE_PATTERN, static::TOTAL_PATTERN),
+                array($page, $this->count()),
+                $this->urlOptions['template']
+            );
+
             return $url;
         }
 
-        $params = isset($this->urlOptions['params']) ? $this->urlOptions['params'] : array();
-        $params[$this->urlOptions['pageParam']] = $page;
-        if (!empty($this->urlOptions['totalParam'])) {
-            $params[$this->urlOptions['totalParam']] = $this->count();
+        $params = isset($this->urlOptions['params'])
+            ? $this->urlOptions['params'] : array();
+        $params[$this->urlOptions['page_param']] = $page;
+        if (!empty($this->urlOptions['total_param'])) {
+            $params[$this->urlOptions['total_param']] = $this->count();
         }
 
-        $router = isset($this->urlOptions['router']) ? $this->urlOptions['router'] : (isset(static::$config['router']) ? static::$config['router'] : null);
-        $route = isset($this->urlOptions['route']) ? $this->urlOptions['route'] : (isset(static::$config['route']) ? static::$config['route'] : null);
+        $router = isset($this->urlOptions['router'])
+            ? $this->urlOptions['router']
+            : (isset(static::$config['router'])
+                ? static::$config['router']
+                : null);
+        $route = isset($this->urlOptions['route'])
+            ? $this->urlOptions['route']
+            : (isset(static::$config['route'])
+                ? static::$config['route']
+                : null);
 
-        if (!$router || !$route) {
-            return false;
+        if ($router) {
+            $options = array(
+                'router'                => $router,
+                'reuse_matched_params'  => true
+            );
+        } else {
+            $options = true;
         }
-
-        $url = $router->assemble($params, array('name' => $route));
+        $url = Pi::service('url')->assemble($route, $params, $options);
 
         return $url;
     }

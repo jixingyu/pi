@@ -16,18 +16,26 @@ class Response extends HttpResponse
         } elseif (array_key_exist($key, $this->params)) {
             unset($this->params[$key]);
         }
+
         return $this;
+    }
+
+    public function getParams()
+    {
+        return $this->params;
     }
 
     public function setParams(array $params)
     {
         $this->params = $params;
+
         return $this;
     }
 
     public function setFormat($format = 'json')
     {
         $this->format = $format;
+
         return $this;
     }
 
@@ -35,17 +43,20 @@ class Response extends HttpResponse
     {
         switch ($this->format) {
             case 'xml':
-                $this->addHeaderLine('Content-Type', 'text/xml');
+                $this->getHeasers()->addHeaderLine('Content-Type', 'text/xml');
                 break;
             case 'json':
             default:
-                $this->addHeaderLine('Content-Type', 'application/json');
+                $this->getHeaders()->addHeaderLine('Content-Type', 'application/json');
                 break;
         }
+
         return $this;
     }
 
-
+    /**
+    * add params to content
+    */
     public function setContent($params = array())
     {
         $params = $params ?: $this->params;
@@ -62,6 +73,7 @@ class Response extends HttpResponse
         }
 
         parent::setContent($content);
+
         return $this;
     }
 

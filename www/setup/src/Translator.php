@@ -1,55 +1,87 @@
 <?php
 /**
- * Pi Engine Setup Request
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @see             Zend\Translate\Adapter\Csv
- * @since           3.0
- * @package         Pi\Setup
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Pi\Setup;
 
+/**
+ * Translator handler
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 class Translator
 {
+    /** @var string */
     protected static $basePath = '';
+
+    /** @var array */
     protected static $data;
+
+    /** @var string */
     protected static $locale = 'en';
+
+    /** @var array */
     protected static $options = array(
         'length'    => 0,
         'delimiter' => ';',
         'enclosure' => '"'
     );
 
+    /**
+     * Translate a message
+     *
+     * @param string $messageId
+     * @return string
+     */
     public static function translate($messageId)
     {
-        $message = isset(static::$data[static::$locale][$messageId]) ? static::$data[static::$locale][$messageId] : $messageId;
+        $message = isset(static::$data[static::$locale][$messageId])
+            ? static::$data[static::$locale][$messageId] : $messageId;
+
         return $message;
     }
 
+    /**
+     * Set base path
+     *
+     * @param string $path
+     * @return void
+     */
     public static function setPath($path)
     {
         static::$basePath = $path;
     }
 
+    /**
+     * Set locale
+     *
+     * @param string $locale
+     * @return void
+     */
     public static function setLocale($locale)
     {
         static::$locale = $locale;
     }
 
+    /**
+     * Load translation file of a domain
+     *
+     * @param string $domain
+     * @return void
+     */
     public static function loadDomain($domain)
     {
-        $filename = sprintf('%s/%s/%s.csv', static::$basePath, static::$locale, $domain);
+        $filename = sprintf(
+            '%s/%s/%s.csv',
+            static::$basePath,
+            static::$locale,
+            $domain
+        );
         try {
             if (isset(static::$data[$domain])) {
                 static::$data[$domain] += (array) static::loadFile($filename);
@@ -58,26 +90,33 @@ class Translator
             }
         } catch (\Exception $e) {
         }
+
         return;
     }
 
     /**
      * Load translation data (CSV file reader)
      *
-     * @param  string  $filename  CSV file to add, full path must be given for access
-     * @param  array   $option    OPTIONAL Options to use
+     * @param  string  $filename  Full path to CSV file
+     * @param  array   $options   OPTIONAL Options to use
      * @return array
+     * @throws \InvalidArgumentException for file failure
      */
     protected static function loadFile($filename, array $options = array())
     {
         $result = array();
-        $options     = $options + static::$options;
+        $options = $options + static::$options;
         $file = @fopen($filename, 'rb');
         if (!$file) {
-            throw new \InvalidArgumentException('Error opening translation file \'' . $filename . '\'.');
+            throw new \InvalidArgumentException(
+                'Error opening translation file \'' . $filename . '\'.'
+            );
         }
 
-        while(($data = fgetcsv($file, $options['length'], $options['delimiter'], $options['enclosure'])) !== false) {
+        while (($data = fgetcsv($file, $options['length'],
+                $options['delimiter'], $options['enclosure'])
+            ) !== false
+        ) {
             if (substr($data[0], 0, 1) === '#') {
                 continue;
             }

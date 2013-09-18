@@ -1,32 +1,60 @@
 <?php
 /**
- * Kernel debug
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @package         Pi
- * @since           3.0
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Pi\Debug
 {
     use Pi;
 
+    /**
+     * Pi Debugger
+     *
+     * Syntactic sugar for debug APIs
+     *
+     * Display a var
+     *
+     *  ```
+     *      d($var);
+     *  ```
+     *
+     * Display call backtrace
+     *
+     *  ```
+     *      b();
+     *  ```
+     *
+     * Contitional display of a var
+     *
+     *  ```
+     *      $var = 'something ...';
+     *
+     *      dc($var);   // No output
+     *
+     *      denable();
+     *
+     *      dc($var);   // Output: something ...
+     *
+     *      denable(false);
+     *
+     *      dc($var);   // No putput
+     *  ```
+     *
+     * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+     */
     class Debug
     {
+        /** @var bool|null In the process of conditional debug */
         protected static $inProcess = null;
 
         /**
          * Loads debugger, nothing to do at this moment
+         *
+         * @return void
          */
         public static function load()
         {}
@@ -35,11 +63,16 @@ namespace Pi\Debug
          * Enable/Disable conditional debugging
          *
          * @param bool $flag
+         * @return void
          */
         public static function enable($flag = true)
         {
             static::$inProcess = $flag;
-            $message = static::render(sprintf('Conditional debug %s', $flag ? 'enabled' : 'disabled'), 2);
+            $message = static::render(sprintf(
+                'Conditional debug %s',
+                $flag ? 'enabled' : 'disabled'),
+                2
+            );
             Pi::service('log')->debug($message);
         }
 
@@ -48,13 +81,14 @@ namespace Pi\Debug
          *
          * @param mixed $data a variable or an object
          * @param int   $skip steps to skip
-         * @return string
+         * @return string|null
          */
         public static function conditional($data, $skip = 0)
         {
             if (true !== static::$inProcess) {
                 return null;
             }
+
             return static::render($data, $skip);
         }
 
@@ -62,6 +96,7 @@ namespace Pi\Debug
          * Syntatic sugar for displaying debugger information
          *
          * @param mixed $data
+         * @return void
          */
         public static function e($data)
         {
@@ -85,6 +120,7 @@ namespace Pi\Debug
          * Displays debugger information
          *
          * @param mixed $data
+         * @return void
          */
         public static function display($data)
         {
@@ -102,7 +138,8 @@ namespace Pi\Debug
         public static function render($data, $skip = 0)
         {
             $time = microtime(true);
-            $location = date('H:i:s', $time) . substr($time, strpos($time, '.'), 5) . ' ';
+            $location = date('H:i:s', $time)
+                      . substr($time, strpos($time, '.'), 5) . ' ';
             $list = debug_backtrace();
             foreach ($list as $item) {
                 if ($skip-- > 0) continue;
@@ -124,14 +161,19 @@ namespace Pi\Debug
                 }
                 $result .= PHP_EOL;
             } else {
-                $result = '<div style="padding: .8em; margin-bottom: 1em; border: 2px solid #ddd;">';
+                $result = '<div style="padding: .8em;'
+                        . ' margin-bottom: 1em; border: 2px solid #ddd;">';
                 if (is_array($data) || is_object($data)) {
                     $result .= $location;
                     $result .= '<div><pre>';
                     $result .= print_r($data, true);
                     $result .= '</pre></div>';
                 } else {
-                    $result .= sprintf('<div>[%s]<pre>%s</pre></div>', $location, $data);
+                    $result .= sprintf(
+                        '<div>%s<pre>%s</pre></div>',
+                        $location,
+                        $data
+                    );
                 }
                 $result .= '</div>';
             }
@@ -144,6 +186,7 @@ namespace Pi\Debug
          *
          * @param bool  $display To display or return as a string
          * @param int   $skip steps to skip
+         * @return void|string
          */
         public static function backtrace($display = true, $skip = 0)
         {
@@ -155,16 +198,29 @@ namespace Pi\Debug
                 $bt = PHP_EOL;
                 $bt .= 'Backtrace at: ' . microtime(true) . PHP_EOL . PHP_EOL;
                 foreach ($list as $backtrace) {
-                    $location = empty($backtrace['file']) ? 'Internal' : Pi::service('security')->path($backtrace['file']) . '(' . $backtrace['line'] . ')';
-                    $bt .= $location . ': ' . (empty($backtrace['class']) ? '' : $backtrace['class'] . '::') . $backtrace['function'] . '()' . PHP_EOL;
+                    $location = empty($backtrace['file'])
+                        ? 'Internal'
+                        : Pi::service('security')->path($backtrace['file'])
+                            . '(' . $backtrace['line'] . ')';
+                    $bt .= $location . ': '
+                         . (empty($backtrace['class'])
+                            ? '' : $backtrace['class'] . '::')
+                         . $backtrace['function'] . '()' . PHP_EOL;
                 }
                 $bt .= PHP_EOL;
             } else {
                 $bt = '<pre>';
-                $bt .= '<strong>Backtrace at: ' . microtime(true) . '</strong><ul>';
+                $bt .= '<strong>Backtrace at: ' . microtime(true)
+                    . '</strong><ul>';
                 foreach ($list as $backtrace) {
-                    $location = empty($backtrace['file']) ? 'Internal' : Pi::service('security')->path($backtrace['file']) . '(' . $backtrace['line'] . ')';
-                    $bt .= '<li>' . $location . ': ' . (empty($backtrace['class']) ? '' : $backtrace['class'] . '::') . $backtrace['function'] . '()</li>';
+                    $location = empty($backtrace['file'])
+                        ? 'Internal'
+                        : Pi::service('security')->path($backtrace['file'])
+                            . '(' . $backtrace['line'] . ')';
+                    $bt .= '<li>' . $location . ': '
+                         . (empty($backtrace['class'])
+                            ? '' : $backtrace['class'] . '::')
+                         . $backtrace['function'] . '()</li>';
                 }
                 $bt .= '</ul>';
                 $bt .= '</pre>';
@@ -182,17 +238,31 @@ namespace Pi\Debug
         }
 
         /**
-         * Debug helper function.  This is a wrapper for var_dump() that adds
-         * the <pre /> tags, cleans up newlines and indents, and runs
+         * Debug helper function
+         *
+         * This is a wrapper for var_dump() that adds the <pre /> tags,
+         * cleans up newlines and indents, and runs
          * htmlspecialchars() before output.
          *
-         * @see     Zend\Debug::dump()
-         * @param   mixed  $var   The variable to dump.
-         * @param   bool   $echo  OPTIONAL echo output if true.
-         * @return  string
+         * @see Zend\Debug::dump()
+         * @param mixed     $var        The variable to dump.
+         * @param bool      $display    OPTIONAL echo output if true.
+         * @param int       $skip       steps to skip
+         * @return string|void
          */
-        public static function dump($var, $echo = true)
+        public static function dump($var, $display = true, $skip = 1)
         {
+            $time = microtime(true);
+            $location = date('H:i:s', $time)
+                      . substr($time, strpos($time, '.'), 5) . ' ';
+            $list = debug_backtrace();
+            foreach ($list as $item) {
+                if ($skip-- > 0) continue;
+                $file = Pi::service('security')->path($item['file']);
+                $location .= $file . ':' . $item['line'];
+                break;
+            }
+
             // var_dump the variable into a buffer and keep the output
             ob_start();
             var_dump($var);
@@ -201,35 +271,47 @@ namespace Pi\Debug
             // neaten the newlines and indents
             $output = preg_replace('/\]\=\>\n(\s+)/m', '] => ', $output);
             if (PHP_SAPI === 'cli') {
-                $output = PHP_EOL . $output . PHP_EOL;
+                $result = PHP_EOL . $location . PHP_EOL . $output . PHP_EOL;
             } else {
                 if (!extension_loaded('xdebug')) {
                     $output = htmlspecialchars($output, ENT_QUOTES);
                 }
-                $output = '<pre>' . $output . '</pre>';
+                $result = '<div style="padding: .8em;'
+                        . ' margin-bottom: 1em; border: 2px solid #ddd;">';
+                $result .= $location;
+                $result .= '<div><pre>';
+                $result .= $output;
+                $result .= '</pre></div>';
+                $result .= '</div>';
             }
 
-            if ($echo) {
-                Pi::service('log')->debug($output);
+            if ($display) {
+                Pi::service('log')->debug($result);
+            } else {
+                return $result;
             }
-            return $output;
         }
     }
 }
 
-/**#@+
- * Syntactic sugar for system API
+/**
+ * Syntactic sugar for debug APIs
  *
  * Display a var
- *  <code>
+ *
+ *  ```
  *      d($var);
- *  </code>
+ *  ```
+ *
  * Display call backtrace
- *  <code>
+ *
+ *  ```
  *      b();
- *  </code>
+ *  ```
+ *
  * Contitional display of a var
- *  <code>
+ *
+ *  ```
  *      $var = 'something ...';
  *      // ...
  *      dc($var);   // No output
@@ -241,7 +323,7 @@ namespace Pi\Debug
  *      denable(false);
  *      // ..
  *      dc($var);   // No putput
- *  </code>
+ *  ```
  */
 namespace
 {
@@ -251,6 +333,7 @@ namespace
      * Displays a debug message
      *
      * @param mixed $data a variable or an object
+     * @return void
      */
     function d($data = '')
     {
@@ -264,6 +347,8 @@ namespace
 
     /**
      * Displays backtrace messages
+     *
+     * @return void
      */
     function b()
     {
@@ -274,6 +359,7 @@ namespace
      * Displays a debug message during conditional debug
      *
      * @param mixed $data a variable or an object
+     * @return void
      */
     function dc($data = '')
     {
@@ -287,6 +373,7 @@ namespace
      * Enable for conditional debug
      *
      * @param bool $flag
+     * @return void
      */
     function denable($flag = true)
     {
@@ -295,6 +382,8 @@ namespace
 
     /**
      * Enable conditional debug
+     *
+     * @return void
      */
     function de()
     {
@@ -303,10 +392,22 @@ namespace
 
     /**
      * Disable conditional debug
+     *
+     * @return void
      */
     function df()
     {
         Debug::enable(false);
     }
+
+    /**
+     * Dump data with var_dump()
+     *
+     * @param mixed $data
+     * @return string
+     */
+    function vd($data)
+    {
+        return Debug::dump($data, true, 1);
+    }
 }
-/**#@-*/

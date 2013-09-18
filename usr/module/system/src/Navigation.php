@@ -1,39 +1,41 @@
 <?php
 /**
- * Pi system navigation content generator
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Module\System
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Module\System;
 
 use Pi;
+use Zend\Db\Sql\Expression;
 
+/**
+ * Navigation handler
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 class Navigation
 {
+    /**
+     * Front navigation
+     *
+     * @param string $module
+     * @return array
+     */
     public static function front($module)
     {
         $nav = array(
             'parent' => array(),
         );
 
-        $modules = Pi::service('registry')->modulelist->read('active');
+        $modules = Pi::registry('modulelist')->read('active');
         unset($modules['system']);
         foreach ($modules as $key => $data) {
-            $node = Pi::service('registry')->navigation->read($key . '-front') ?: array();
-            if (!$node) {
+            $node = Pi::registry('navigation')->read($key . '-front');
+            if (!is_array($node)) {
                 continue;
             }
 
@@ -51,22 +53,20 @@ class Navigation
         return $nav;
     }
 
+    /**
+     * Admin navigation
+     *
+     * @param string $module
+     * @return array
+     */
     public static function admin($module)
     {
         $pages = array();
-        /*
-        $name = 'system';
-        $nav = array(
-            'route'     => 'admin',
-            'module'    => &$name,
-            'pages'     => &$pages,
-        );
-        */
         $nav = array(
             'parent' => &$pages,
         );
 
-        $modules = Pi::service('registry')->modulelist->read('active');
+        $modules = Pi::registry('modulelist')->read('active');
         unset($modules['system']);
         foreach ($modules as $key => $data) {
             $pages[$key] = array(
@@ -75,41 +75,33 @@ class Navigation
                 'route'     => 'admin',
             );
         }
-        /*
-        if ($pages) {
-            $list = array_keys($pages);
-            $name = array_shift($list);
-        }
-        */
 
         return $nav;
     }
 
+    /**
+     * Navigation for configs
+     *
+     * @param string $module
+     * @return array
+     */
     public static function config($module)
     {
         $pages = array();
-        /*
-        $name = 'system';
-        $nav = array(
-            'params'    => array(
-                'name'  => &$name,
-            ),
-            'pages'     => &$pages,
-        );
-        */
         $nav = array(
             'parent' => &$pages,
         );
 
         $model = Pi::model('config');
-        $select = $model->select()->group('module')->columns(array('count' => new \Zend\Db\Sql\Expression('count(*)'), 'module'));
+        $select = $model->select()->group('module')
+            ->columns(array('count' => new Expression('count(*)'), 'module'));
         $rowset = $model->selectWith($select);
         $configCounts = array();
         foreach ($rowset as $row) {
             $configCounts[$row->module] = $row->count;
         }
 
-        $modules = Pi::service('registry')->modulelist->read('active');
+        $modules = Pi::registry('modulelist')->read('active');
         unset($modules['system']);
         foreach ($modules as $key => $data) {
             if (!empty($configCounts[$key])) {
@@ -125,16 +117,16 @@ class Navigation
                 );
             }
         }
-        /*
-        if ($pages) {
-            $list = array_keys($pages);
-            $name = array_shift($list);
-        }
-        */
 
         return $nav;
     }
 
+    /**
+     * Navigation for block
+     *
+     * @param string $module
+     * @return array
+     */
     public static function block($module)
     {
         $pages = array();
@@ -142,43 +134,16 @@ class Navigation
             'pages'     => &$pages,
         );
 
-        /*
-        $pages[''] = array(
-            'label'         => __('Custom blocks'),
-            'module'        => $module,
-            'route'         => 'admin',
-            'controller'    => 'block',
-            'pages'         => array(
-                'add'   => array(
-                    'label' => __('Add custom block'),
-                    'module' => 'system',
-                    'route' => 'admin',
-                    'controller' => 'block',
-                    'action' => 'add',
-                    'visible' => 0,
-                ),
-                'custom'  => array(
-                    'label' => __('Edit custom block'),
-                    'module' => 'system',
-                    'route' => 'admin',
-                    'controller' => 'block',
-                    'action' => 'editcustom',
-                    'visible' => 0,
-                ),
-            ),
-        );
-        $pages['_divider'] = array();
-        */
-
         $model = Pi::model('block');
-        $select = $model->select()->group('module')->columns(array('count' => new \Zend\Db\Sql\Expression('count(*)'), 'module'));
+        $select = $model->select()->group('module')
+            ->columns(array('count' => new Expression('count(*)'), 'module'));
         $rowset = $model->selectWith($select);
         $blockCounts = array();
         foreach ($rowset as $row) {
             $blockCounts[$row->module] = $row->count;
         }
 
-        $modules = Pi::service('registry')->modulelist->read('active');
+        $modules = Pi::registry('modulelist')->read('active');
         foreach ($modules as $key => $data) {
             if (empty($blockCounts[$key])) {
                 continue;
@@ -221,6 +186,12 @@ class Navigation
         return $nav;
     }
 
+    /**
+     * Navigation for pages
+     *
+     * @param string $module
+     * @return array
+     */
     public static function page($module)
     {
         $pages = array();
@@ -228,7 +199,7 @@ class Navigation
             'pages'     => &$pages,
         );
 
-        $modules = Pi::service('registry')->modulelist->read('active');
+        $modules = Pi::registry('modulelist')->read('active');
         $systemModule = $modules['system'];
         unset($modules['system']);
         $modules = array('system' => $systemModule) + $modules;

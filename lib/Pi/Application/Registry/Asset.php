@@ -1,21 +1,11 @@
 <?php
 /**
- * Pi cache registry
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           3.0
- * @package         Pi\Application
- * @subpackage      Registry
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
+ * @package         Registry
  */
 
 namespace Pi\Application\Registry;
@@ -24,8 +14,16 @@ use Pi;
 use RecursiveIteratorIterator;
 use RecursiveDirectoryIterator;
 
+/**
+ * Asset list
+ *
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 class Asset extends AbstractRegistry
 {
+    /**
+     * {@inheritDoc}
+     */
     protected function loadDynamic($options = array())
     {
         $files = array();
@@ -34,7 +32,9 @@ class Asset extends AbstractRegistry
         if (is_dir($path)) {
             $iterator = new \DirectoryIterator($path);
             foreach ($iterator as $fileinfo) {
-                if (!$fileinfo->isDir() && !$fileinfo->isLink() || $fileinfo->isDot()) {
+                if (!$fileinfo->isDir() && !$fileinfo->isLink()
+                    || $fileinfo->isDot()
+                ) {
                     continue;
                 }
                 $module = $fileinfo->getFilename();
@@ -43,7 +43,14 @@ class Asset extends AbstractRegistry
                 }
                 $modulePath = $path . '/' . $module . '/';
                 $modulePathLength = strlen($modulePath);
-                $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($modulePath, \FilesystemIterator::SKIP_DOTS | \FilesystemIterator::FOLLOW_SYMLINKS), RecursiveIteratorIterator::SELF_FIRST);
+                $iterator = new RecursiveIteratorIterator(
+                    new RecursiveDirectoryIterator(
+                        $modulePath,
+                        \FilesystemIterator::SKIP_DOTS
+                            | \FilesystemIterator::FOLLOW_SYMLINKS
+                    ),
+                    RecursiveIteratorIterator::SELF_FIRST
+                );
                 foreach ($iterator as $fileData) {
                     if ($fileData->isFile() || $fileData->isLink()) {
                         $filePath = $fileData->getPathname();
@@ -51,10 +58,16 @@ class Asset extends AbstractRegistry
                             $filePath = strtr($filePath, '\\', '/');
                         }
                         $filePath = substr($filePath, $modulePathLength);
-                        if (preg_match('/(^[^a-z0-9\-]+|\/[^a-z0-9\-]+)/i', dirname($filePath))) {
+                        if (preg_match(
+                            '/(^[^a-z0-9\-]+|\/[^a-z0-9\-]+)/i',
+                            dirname($filePath)
+                        )) {
                             continue;
                         }
-                        $fileUrl = Pi::service('asset')->getCustomAsset($filePath, $module);
+                        $fileUrl = Pi::service('asset')->getCustomAsset(
+                            $filePath,
+                            $module
+                        );
                         $files[$module][$filePath] = $fileUrl;
                     }
                 }
@@ -64,6 +77,9 @@ class Asset extends AbstractRegistry
         return $files;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function setNamespace($meta)
     {
         if (is_string($meta)) {
@@ -71,32 +87,51 @@ class Asset extends AbstractRegistry
         } else {
             $namespace = $meta['theme'];
         }
+
         return parent::setNamespace($namespace);
     }
 
-    public function read($module, $theme = null)
+    /**
+     * {@inheritDoc}
+     * @param string    $module
+     * @param string    $theme
+     */
+    public function read($module = '', $theme = '')
     {
         //$this->cache = false;
-        $theme = $theme ?: Pi::service('theme')->current();
+        $module = $module ?: Pi::service('module')->current();
+        $theme  = $theme ?: Pi::service('theme')->current();
         $options = compact('theme');
         $data = $this->loadData($options);
+
         return isset($data[$module]) ? $data[$module] : array();
     }
 
-    public function create($module, $theme = null)
+    /**
+     * {@inheritDoc}
+     * @param string    $module
+     * @param string    $theme
+     */
+    public function create($module = '', $theme = '')
     {
-        $theme = $theme ?: Pi::service('theme')->current();
+        $module = $module ?: Pi::service('module')->current();
+        $theme  = $theme ?: Pi::service('theme')->current();
         $this->clear($theme);
         $this->read($module, $theme);
+
         return true;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function flush()
     {
-        $themes = Pi::service('registry')->themelist->read();
+        $themes = Pi::registry('themelist')->read();
         foreach (array_keys($themes) as $theme) {
             $this->clear($theme);
         }
+
         return $this;
     }
 }

@@ -1,35 +1,24 @@
 <?php
 /**
- * Pi Engine Markup Renderer
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           1.0
- * @package         Pi\Markup
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Pi\Markup\Renderer;
 
 use Pi\Markup\Parser\AbstractParser;
 use Pi\Filter\FilterChain;
+use Zend\Filter\AbstractFilter;
 use Traversable;
 use Zend\Stdlib\ArrayUtils;
 
 /**
- * Defines the basic rendering functionality
+ * Abstract render for markup
  *
- * @category   Zend
- * @package    Zend_Markup
- * @subpackage Renderer
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
  */
 abstract class AbstractRenderer
 {
@@ -47,14 +36,16 @@ abstract class AbstractRenderer
      */
     protected $encoding = 'UTF-8';
 
+    /** @var array Options */
     protected $options = array();
+
+    /** @var FilterChain Filters */
     protected $filterChain;
 
     /**
      * Constructor
      *
      * @param  array|Traversable $options
-     * @return void
      */
     public function __construct($options = array())
     {
@@ -79,6 +70,12 @@ abstract class AbstractRenderer
         $this->setOptions($options);
     }
 
+    /**
+     * Set options
+     *
+     * @param array|\Traversable $options
+     * @return $this
+     */
     public function setOptions($options)
     {
         foreach ($options as $key => $val) {
@@ -88,6 +85,12 @@ abstract class AbstractRenderer
         return $this;
     }
 
+    /**
+     * Set filters
+     *
+     * @param \Zend\Filter\AbstractFilter[] $filters
+     * @return $this
+     */
     public function setFilters($filters)
     {
         if (!$this->filterChain instanceof FilterChain) {
@@ -105,7 +108,7 @@ abstract class AbstractRenderer
      * Set the parser
      *
      * @param AbstractParser|string $parser
-     * @return AbstractRenderer
+     * @return $this
      */
     public function setParser($parser)
     {
@@ -128,8 +131,7 @@ abstract class AbstractRenderer
      * Set the renderer's encoding
      *
      * @param string $encoding
-     *
-     * @return AbstractRenderer
+     * @return $this
      */
     public function setEncoding($encoding)
     {
@@ -152,7 +154,6 @@ abstract class AbstractRenderer
      * Render function
      *
      * @param string $content
-     *
      * @return string
      */
     public function render($content)
@@ -169,7 +170,6 @@ abstract class AbstractRenderer
      * Parse content
      *
      * @param string $content
-     *
      * @return string
      */
     abstract protected function parse($content);

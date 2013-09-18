@@ -1,39 +1,46 @@
 <?php
 /**
- * Security check for Pi Engine
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @since           1.0
- * @package         Security
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
  */
 
 namespace Pi\Security;
 
+/**
+ * Cross site scripting check
+ *
+ * @link: http://ha.ckers.org/xss.html
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
+ */
 class Xss extends AbstractAdapter
 {
-    const MESSAGE = "Access denied by XSS check";
+    /** @var string */
+    const MESSAGE = 'Access denied by XSS check';
+
+    /**
+     * To filter malicious code
+     * @var bool
+     */
     protected static $filter = true;
+
+    /**
+     * Minimum length of content to check
+     * @var int
+     */
     protected static $length = 0;
 
     /**
-     * Check security settings
-     *
-     * Policy: Returns TRUE will cause process quite and the current request will be approved; returns FALSE will cause process quit and request will be denied
+     * {@inheritDoc}
      */
     public static function check($options = array())
     {
-        $filter = isset($options['filter']) ? $options['filter'] : static::$filter;
-        static::$length = isset($options['length']) ? $options['length'] : static::$length;
+        $filter = isset($options['filter'])
+            ? $options['filter'] : static::$filter;
+        static::$length = isset($options['length'])
+            ? $options['length'] : static::$length;
 
         if (!empty($options['post']) && !empty($_POST)) {
             if (static::checkXssRecursive($_POST, $filter) && !$filter) {
@@ -49,6 +56,11 @@ class Xss extends AbstractAdapter
         return null;
     }
 
+    /**
+     * Recursive check against XSS
+     *
+     * @return void
+     */
     public static function test()
     {
         $test = array(
@@ -62,6 +74,13 @@ class Xss extends AbstractAdapter
         static::checkXssRecursive($test);
     }
 
+    /**
+     * Check XSS recursively
+     *
+     * @param string|array  $content    String or associative array
+     * @param bool          $filter     To filter malicious code
+     * @return bool
+     */
     public static function checkXssRecursive(& $content, $filter = true)
     {
         if (is_array($content)) {
@@ -78,22 +97,24 @@ class Xss extends AbstractAdapter
     /**
      * Check XSS code
      *
-     * @link: http://ha.ckers.org/xss.html
-     * Inspired by:
-     *  4images: http://phpxref.com/xref/4images/global.php.source.txt
-     *  Daniel Morris: http://www.phpclasses.org/browse/file/9402.html
-     *  kallahar@quickwired.com's RemoveXSS
-     *  htmlLawed
-     *  HTMLpurifier
-     *  etc.
      *
-     * @param string    $content the text to be checked
-     * @param bool      $filter to filter malicious code or just return status
-     * @return mixed
+     * Inspired by:
+     *
+     *  - 4images: http://phpxref.com/xref/4images/global.php.source.txt
+     *  - Daniel Morris: http://www.phpclasses.org/browse/file/9402.html
+     *  - kallahar@quickwired.com's RemoveXSS
+     *  - htmlLawed
+     *  - HTMLpurifier
+     *
+     * @param string    $content    Text to be checked
+     * @param bool      $filter     Filter malicious code or just return status
+     * @return string|null
      */
     public static function checkXss(&$content, $filter = true)
     {
-        if (!is_string($content) || (static::$length && strlen($content) < static::$length)) {
+        if (!is_string($content)
+            || (static::$length && strlen($content) < static::$length)
+        ) {
             return $filter ? $content : null;
         }
 
@@ -122,27 +143,33 @@ class Xss extends AbstractAdapter
         $script = "j{$c}a{$c}v{$c}a{$c}s{$c}c{$c}r{$c}i{$c}p{$c}t";
         $patterns[] = "/([a-z]*){$c}={$c}([\`\'\"]*){$c}{$script}{$c}:/iU";
         $replaces[] = '\\1=\\2noscript:';
-        $script = "v{$c}b{$c}s{$c}c{$c}r{$c}i{$c}p{$c}t|a{$c}b{$c}o{$c}u{$c}t|x{$c}s{$c}s|-moz-binding";
+        $script = "v{$c}b{$c}s{$c}c{$c}r{$c}i{$c}p{$c}t|a{$c}b{$c}o{$c}u{$c}t"
+                . "|x{$c}s{$c}s|-moz-binding";
         $patterns[] = "/([a-z]*){$c}={$c}([\'\"]*){$c}({$script}){$c}:/iU";
         $replaces[] = '\\1=\\2noscript:';
 
         // @import
-        $patterns[] = "/([a-z]*){$c}([\\\]*){$c}@([\\\]*){$c}i([\\\]*){$c}m([\\\]*){$c}p([\\\]*){$c}o([\\\]*){$c}r([\\\]*){$c}t/iU";
+        $patterns[] = "/([a-z]*){$c}([\\\]*){$c}@([\\\]*){$c}i([\\\]*){$c}m"
+                    . "([\\\]*){$c}p([\\\]*){$c}o([\\\]*){$c}r"
+                    . "([\\\]*){$c}t/iU";
         $replaces[] = '\\1@noimport';
 
         // <span style="width: expression|behaviour( ... );"></span>
         // for ie
-        //$patterns[] = "/(<[^>]+)style{$c}={$c}([\`\'\"]*).*(e{$c}x{$c}p{$c}r{$c}e{$c}s{$c}s{$c}i{$c}o{$c}n|b{$c}e{$c}h{$c}a{$c}v{$c}i{$c}o{$c}u{$c}r){$c}\([^>]*>/iU";
-        $patterns[] = "/(<[^>]+)style{$c}={$c}([\`\'\"]{1}).*(e{$c}x{$c}p{$c}r{$c}e{$c}s{$c}s{$c}i{$c}o{$c}n|b{$c}e{$c}h{$c}a{$c}v{$c}i{$c}o{$c}u{$c}r){$c}\(.*\\2(.*)>/iU";
+        $patterns[] = "/(<[^>]+)style{$c}={$c}([\`\'\"]{1}).*"
+                    . "(e{$c}x{$c}p{$c}r{$c}e{$c}s{$c}s{$c}i{$c}o{$c}n"
+                    . "|b{$c}e{$c}h{$c}a{$c}v{$c}i{$c}o{$c}u{$c}r)"
+                    . "{$c}\(.*\\2(.*)>/iU";
         $replaces[] = "\\1\\4>";
 
         // <span style="script: "></span>
-        //$patterns[] = "/(<[^>]+)style{$c}={$c}([\`\'\"]*).*s{$c}c{$c}r{$c}i{$c}p{$c}t{$c}:*[^>]*>/iU";
-        $patterns[] = "/(<[^>]+)style{$c}={$c}([\`\'\"]{1}).*s{$c}c{$c}r{$c}i{$c}p{$c}t{$c}: .*\\2(.*)>/iU";
+        $patterns[] = "/(<[^>]+)style{$c}={$c}([\`\'\"]{1}).*"
+                    . "s{$c}c{$c}r{$c}i{$c}p{$c}t{$c}: .*\\2(.*)>/iU";
         $replaces[] = "\\1\\3>";
 
         if ($filter) {
             $content = preg_replace($patterns, $replaces, $content);
+
             return $content;
         } else {
             return null;

@@ -1,77 +1,75 @@
 <?php
 /**
- * Authentication service class
+ * Pi Engine (http://pialog.org)
  *
- * You may not change or alter any portion of this comment or credits
- * of supporting developers from this source code or any supporting source code
- * which is considered copyrighted (c) material of the original comment or credit authors.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * @copyright       Copyright (c) Pi Engine http://www.xoopsengine.org
- * @license         http://www.xoopsengine.org/license New BSD License
- * @author          Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
- * @package         Pi\Application
- * @subpackage      Service
- * @since           3.0
- * @version         $Id$
+ * @link            http://code.pialog.org for the Pi Engine source repository
+ * @copyright       Copyright (c) Pi Engine http://pialog.org
+ * @license         http://pialog.org/license.txt New BSD License
+ * @package         Service
  */
 
 namespace Pi\Application\Service;
+
 use Pi;
-use Pi\Application\User;
-use Zend\Authentication\Adapter;
-use Zend\Authentication\Storage;
+use Pi\Authentication\Adapter\AdapterInterface;
+use Pi\Authentication\Storage\StorageInterface;
+use Zend\Authentication\Result;
 
 /**
- * Authentication service class
+ * Authentication service
  *
  * Usage with default adapter:
- * <code>
- *  Pi::service('authentication')->authenticate('user', 'password');
+ *
+ * ```
+ *  Pi::service('authentication')->authenticate(<identity>, <credential>);
  *  if ($rememberMe) {
- *      Pi::registry('session')->rememberMe();
+ *      Pi::service('session')->rememberMe();
  *  }
- * </code>
- * Usage with specified adapter:
- * <code>
+ * ```
+ *
+ * Usage with specified adapter via authenticate method:
+ *
+ * ```
  *  $adapter = new Adapter();
- *  Pi::service('authentication')->authenticate('user', 'password', $adapter);
+ *  Pi::service('authentication')->authenticate(<identity>,
+ *      <credential>, $adapter);
  *  if ($rememberMe) {
- *      Pi::registry('session')->rememberMe();
+ *      Pi::service('session')->rememberMe();
  *  }
- * </code>
- * or
- * Usage with default adapter:
- * <code>
+ * ```
+ *
+ * Usage with specified adapter via separate methods:
+ *
+ * ```
  *  $adapter = new Adapter();
- *  Pi::serivce('authentication')->setAdapter($adapter);
- *  Pi::service('authentication')->authenticate('user', 'password');
+ *  Pi::service('authentication')->setAdapter($adapter);
+ *  Pi::service('authentication')->authenticate(<identity>, <credential>);
  *  if ($rememberMe) {
- *      Pi::registry('session')->rememberMe();
+ *      Pi::service('session')->rememberMe();
  *  }
- * </code>
+ * ```
  *
  * @see Zend\Authentication\AuthenticationService
+ * @author Taiwen Jiang <taiwenjiang@tsinghua.org.cn>
  */
 class Authentication extends AbstractService
 {
     /**
-     * Config file identifier
-     *
-     * @var string
+     * {@inheritDoc}
      */
     protected $fileIdentifier = 'authentication';
 
     /**
-     * Adpater handler
-     * @var Adapter
+     * Adapter handler
+     *
+     * @var AdapterInterface
      */
     protected $adapter;
+
     /**
      * Storage handler
-     * @var Storage
+     *
+     * @var StorageInterface
      */
     protected $storage;
 
@@ -80,11 +78,16 @@ class Authentication extends AbstractService
      *
      * @param string $identity
      * @param string $credential
-     * @param Adapter $adapter
-     * @return Zend\Authentication\Result
+     * @param AdapterInterface $adapter
+     * @param StorageInterface $storage
+     * @return Result
      */
-    public function authenticate($identity, $credential, Adapter $adapter = null)
-    {
+    public function authenticate(
+        $identity,
+        $credential,
+        AdapterInterface $adapter = null,
+        StorageInterface $storage = null
+    ) {
         $adapter = $adapter ?: $this->getAdapter();
         $adapter->setIdentity($identity);
         $adapter->setCredential($credential);
@@ -95,48 +98,107 @@ class Authentication extends AbstractService
         }
 
         if ($result->isValid()) {
-            $this->getStorage()->write($result->getIdentity());
+            $storage = $storage ?: $this->getStorage();
+            $storage->write($result->getIdentity());
+            $result->setData($adapter->getResultRow());
         }
 
         return $result;
     }
 
-    public function setAdapter(Adapter $adapter)
+    /**
+     * Set adapter
+     *
+     * @param AdapterInterface $adapter
+     * @return $this
+     */
+    public function setAdapter(AdapterInterface $adapter)
     {
         $this->adapter = $adapter;
+
         return $this;
     }
 
+    /**
+     * Get adapter
+     *
+     * @return AdapterInterface
+     */
     public function getAdapter()
     {
         if (!$this->adapter) {
-            $class      = $this->options['adapter']['class'];
-            $options    = isset($this->options['adapter']['options']) ? $this->options['adapter']['options'] : null;
-            $this->adapter = new $class($options);
+            $this->adapter = $this->loadAdapter($this->options['adapter']);
         }
+
         return $this->adapter;
     }
 
-    public function setStorage(Storage $storage)
+    /**
+     * Set storage
+     *
+     * @param StorageInterface $storage
+     * @return $this
+     */
+    public function setStorage(StorageInterface $storage)
     {
         $this->storage = $storage;
+
         return $this;
     }
 
+    /**
+     * Get storage
+     *
+     * @return StorageInterface
+     */
     public function getStorage()
     {
         if (!$this->storage) {
-            $class      = $this->options['storage']['class'];
-            $options    = isset($this->options['storage']['options']) ? $this->options['storage']['options'] : null;
-            $this->storage = new $class($options);
+            $this->storage = $this->loadStorage($this->options['storage']);
         }
+
         return $this->storage;
     }
 
     /**
+     * Load authentication adapter
+     *
+     * @param array $config
+     * @return AdapterInterface
+     */
+    public function loadAdapter($config = array())
+    {
+        $class      = $config['class'];
+        $options    = isset($config['options']) ? $config['options'] : array();
+        $adapter = new $class;
+        if ($options) {
+            $adapter->setOptions($options);
+        }
+
+        return $adapter;
+    }
+
+    /**
+     * Load authentication storage
+     *
+     * @param array $config
+     * @return StorageInterface
+     */
+    public function loadStorage($config = array())
+    {
+        $class      = $config['class'];
+        $options    = isset($config['options']) ? $config['options'] : array();
+        $storage = new $class($options);
+
+        return $storage;
+    }
+
+    /**
+     * Check if an identity in current session
+     *
      * Returns true if and only if an identity is available from storage
      *
-     * @return boolean
+     * @return bool
      */
     public function hasIdentity()
     {
@@ -151,7 +213,6 @@ class Authentication extends AbstractService
     public function getIdentity()
     {
         $storage = $this->getStorage();
-
         if ($storage->isEmpty()) {
             return null;
         }
@@ -167,16 +228,5 @@ class Authentication extends AbstractService
     public function clearIdentity()
     {
         $this->getStorage()->clear();
-    }
-
-    /**
-     * Wake up a user
-     *
-     * @param string|null $identity
-     */
-    public function wakeup($identity = null)
-    {
-        $identity = $identity ?: $this->getIdentity();
-        Pi::registry('user', new User($identity));
     }
 }
