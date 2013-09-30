@@ -45,6 +45,7 @@ class AuthorizeController extends AbstractProviderController
                 return;
             }
             // Unverified client can only access the client creater's data
+            // TODO Test accounts for unverified client can be configured
             $clientData = Oauth::storage('client')->getClient($params['client_id']);
             if ($clientData['verify'] != 2 && $clientData['uid'] != Pi::user()->getUser()->id) {
                 $authorize->setError('access_denied');

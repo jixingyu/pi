@@ -43,7 +43,6 @@ class ClientRegisterFilter extends InputFilter
             ),
             'validators'  => array(
                 new \Zend\Validator\Uri(),
-//                new \Zend\Validator\Hostname(\Zend\Validator\Hostname::ALLOW_ALL)
             ),
         ));
 
@@ -56,8 +55,7 @@ class ClientRegisterFilter extends InputFilter
                 ),
             ),
             'validators'  => array(
-                new \Zend\Validator\Uri(),
-//                new \Zend\Validator\Hostname(\Zend\Validator\Hostname::ALLOW_DNS)
+                new \Zend\Validator\Uri(array('allowRelative' => false)),
             ),
         ));
 
@@ -80,7 +78,7 @@ class ClientRegisterFilter extends InputFilter
                 ),
             ),
             'validators'  => array(
-                new \Zend\Validator\Uri(),
+                new \Zend\Validator\Uri(array('allowRelative' => false)),
             ),
         ));
 

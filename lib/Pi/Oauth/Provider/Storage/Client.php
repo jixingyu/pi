@@ -37,8 +37,8 @@ class Client extends AbstractStorage implements ValidateInterface
     protected function generateClient()
     {
         return array(
-            'client_id'     => md5(rand()),
-            'client_secret' => md5(rand()),
+            'client_id'     => $this->generateCode(),
+            'client_secret' => $this->generateCode(),
             'time_create'   => time(),
         );
     }

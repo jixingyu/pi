@@ -55,7 +55,7 @@ class ClientEditFilter extends InputFilter
                 ),
             ),
             'validators'  => array(
-                new \Zend\Validator\Uri(),
+                new \Zend\Validator\Uri(array('allowRelative' => false)),
             ),
         ));
 
@@ -78,7 +78,7 @@ class ClientEditFilter extends InputFilter
                 ),
             ),
             'validators'  => array(
-                new \Zend\Validator\Uri(),
+                new \Zend\Validator\Uri(array('allowRelative' => false)),
             ),
         ));
     }

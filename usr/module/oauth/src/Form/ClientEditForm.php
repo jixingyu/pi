@@ -62,7 +62,7 @@ class ClientEditForm extends BaseForm
             ),
             'attributes'    => array(
                 'type'  => 'text',
-                'description'   => __('Url of client website'),
+                'description'   => __('Url of client website, used to verify the client.'),
             )
         ));
 
@@ -73,7 +73,7 @@ class ClientEditForm extends BaseForm
             ),
             'attributes'    => array(
                 'type'  => 'text',
-                'description'   => __('Redirect uri after authorization'),
+                'description'   => __('Redirect uri after authorization. Must be absolute URI, eg. http://www.test.com'),
             )
         ));
 

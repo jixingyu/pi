@@ -26,7 +26,7 @@ For consumer(Implicit)
   </tr>
   <tr>
     <td>scope(optional)</td>
-    <td>Uncompleted(please use "base" for testing)</td>
+    <td>The token scope used to determine the access scopes under the control of the client. It is separated by space.</td>
   </tr>
 </table>
 
